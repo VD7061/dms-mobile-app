@@ -87,6 +87,8 @@ PODS:
     - ExpoModulesCore
   - ExpoSymbols (56.0.5):
     - ExpoModulesCore
+  - ExpoSystemUI (56.0.5):
+    - ExpoModulesCore
   - ExpoUI (56.0.12):
     - ExpoModulesCore
     - ExpoModulesWorklets
@@ -2227,6 +2229,7 @@ DEPENDENCIES:
   - ExpoSecureStore (from `../node_modules/expo-secure-store/ios`)
   - ExpoSplashScreen (from `../node_modules/expo-splash-screen/ios`)
   - ExpoSymbols (from `../node_modules/expo-symbols/ios`)
+  - ExpoSystemUI (from `../node_modules/expo-system-ui/ios`)
   - "ExpoUI (from `../node_modules/@expo/ui/ios`)"
   - FBLazyVector (from `../node_modules/react-native/Libraries/FBLazyVector`)
   - hermes-engine (from `../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`)
@@ -2348,6 +2351,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/expo-splash-screen/ios"
   ExpoSymbols:
     :path: "../node_modules/expo-symbols/ios"
+  ExpoSystemUI:
+    :path: "../node_modules/expo-system-ui/ios"
   ExpoUI:
     :path: "../node_modules/@expo/ui/ios"
   FBLazyVector:
@@ -2533,6 +2538,7 @@ SPEC CHECKSUMS:
   ExpoSecureStore: f1bd083c1b7b8d4142013ffcc0082d377d9f49f4
   ExpoSplashScreen: 9252351e01af907fcbafc9c7a4ffc68a00fbfdbe
   ExpoSymbols: f83c91f2897d37102b98b9224c603095630be9d0
+  ExpoSystemUI: 8f4fb641c6a6ebe2a01dda0fbd3fdd952ab5823a
   ExpoUI: 556eeaf2686e78f690c8a6779e85412171f3bb76
   FBLazyVector: 24e62c765683b8d89006a88a2c8f5cf019f0074d
   hermes-engine: 16a8950807e56623b6dad5ecded90a86b5740ed7
@@ -2612,10 +2618,10 @@ SPEC CHECKSUMS:
   RNCMaskedView: eb2b2e538afa907f05a5848a1a1ac26092e6fec9
   RNGestureHandler: 2ff61eac036eaf89f6818bf4ed9c39771a17d134
   RNReanimated: f735b1747a7a93bda7ca102c6d37a3cf54b6d5e8
-  RNScreens: 75d04ea58bd7a8e8ac60b7968d0382aa71631a7d
+  RNScreens: b568eae3ac4b2bb04a57318b2488d76234bad204
   RNWorklets: 4931990f73bc8f347586918b2e13f11dfadf3b75
   Yoga: 77dfa8673de2874e1855002ae59c68b8be9b007b
 
-PODFILE CHECKSUM: c99f5ad9f03f93be45c70502f9619130b1a8a1df
+PODFILE CHECKSUM: 70488bc5902dcf70d4a06f125a3588d9ef782caf
 
 COCOAPODS: 1.16.1

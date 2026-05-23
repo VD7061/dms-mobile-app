@@ -9,15 +9,15 @@
 /* Begin PBXBuildFile section */
 		019CCFB13103D90700A3CBF3 /* libPods-dealermanagement.a in Frameworks */ = {isa = PBXBuildFile; fileRef = F84EC476CE1F421EA4E4716E /* libPods-dealermanagement.a */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
+		2793E130EBCC4B7180521FEB /* Poppins-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A4C1EE335C3C4329BD9630EE /* Poppins-Regular.ttf */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
 		83339DDCFBE09CA4C115868C /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F64A550DAFDF710D9A0F5B5 /* ExpoModulesProvider.swift */; };
 		8C83DBFEAE97E26E313FAC12 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = C1C2D6E197BA3525E4D3E326 /* PrivacyInfo.xcprivacy */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
-		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
-		2793E130EBCC4B7180521FEB /* Poppins-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A4C1EE335C3C4329BD9630EE /* Poppins-Regular.ttf */; };
-		E5D359623CD647CDBD549A24 /* Poppins-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 31025482F4B14E80B3BD212B /* Poppins-Medium.ttf */; };
 		D75D6F6B118F48A7BBB2C497 /* Poppins-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 75A8F0E5DA5C467F90048E67 /* Poppins-SemiBold.ttf */; };
 		DE4F9F374520496E8C2814A7 /* Poppins-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 8EA46CCDC71447C98FDEDCDD /* Poppins-Bold.ttf */; };
+		E5D359623CD647CDBD549A24 /* Poppins-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 31025482F4B14E80B3BD212B /* Poppins-Medium.ttf */; };
+		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -26,7 +26,11 @@
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = dealermanagement/Info.plist; sourceTree = "<group>"; };
 		14C9C14C0F3AC1A08298B6A8 /* Pods-dealermanagement.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-dealermanagement.release.xcconfig"; path = "Target Support Files/Pods-dealermanagement/Pods-dealermanagement.release.xcconfig"; sourceTree = "<group>"; };
 		2F64A550DAFDF710D9A0F5B5 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-dealermanagement/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
+		31025482F4B14E80B3BD212B /* Poppins-Medium.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Poppins-Medium.ttf"; path = "../assets/fonts/Poppins-Medium.ttf"; sourceTree = "<group>"; };
+		75A8F0E5DA5C467F90048E67 /* Poppins-SemiBold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Poppins-SemiBold.ttf"; path = "../assets/fonts/Poppins-SemiBold.ttf"; sourceTree = "<group>"; };
+		8EA46CCDC71447C98FDEDCDD /* Poppins-Bold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Poppins-Bold.ttf"; path = "../assets/fonts/Poppins-Bold.ttf"; sourceTree = "<group>"; };
 		97D9B14018A7026912BF7E2D /* Pods-dealermanagement.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-dealermanagement.debug.xcconfig"; path = "Target Support Files/Pods-dealermanagement/Pods-dealermanagement.debug.xcconfig"; sourceTree = "<group>"; };
+		A4C1EE335C3C4329BD9630EE /* Poppins-Regular.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Poppins-Regular.ttf"; path = "../assets/fonts/Poppins-Regular.ttf"; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = dealermanagement/SplashScreen.storyboard; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
 		C1C2D6E197BA3525E4D3E326 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = dealermanagement/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
@@ -34,10 +38,6 @@
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = dealermanagement/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* dealermanagement-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "dealermanagement-Bridging-Header.h"; path = "dealermanagement/dealermanagement-Bridging-Header.h"; sourceTree = "<group>"; };
 		F84EC476CE1F421EA4E4716E /* libPods-dealermanagement.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-dealermanagement.a"; sourceTree = BUILT_PRODUCTS_DIR; };
-		A4C1EE335C3C4329BD9630EE /* Poppins-Regular.ttf */ = {isa = PBXFileReference; name = "Poppins-Regular.ttf"; path = "../assets/fonts/Poppins-Regular.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		31025482F4B14E80B3BD212B /* Poppins-Medium.ttf */ = {isa = PBXFileReference; name = "Poppins-Medium.ttf"; path = "../assets/fonts/Poppins-Medium.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		75A8F0E5DA5C467F90048E67 /* Poppins-SemiBold.ttf */ = {isa = PBXFileReference; name = "Poppins-SemiBold.ttf"; path = "../assets/fonts/Poppins-SemiBold.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
-		8EA46CCDC71447C98FDEDCDD /* Poppins-Bold.ttf */ = {isa = PBXFileReference; name = "Poppins-Bold.ttf"; path = "../assets/fonts/Poppins-Bold.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -142,7 +142,7 @@
 			sourceTree = "<group>";
 		};
 		C5D88D4A38F64DD9970BAAE5 /* Resources */ = {
-			isa = "PBXGroup";
+			isa = PBXGroup;
 			children = (
 				A4C1EE335C3C4329BD9630EE /* Poppins-Regular.ttf */,
 				31025482F4B14E80B3BD212B /* Poppins-Medium.ttf */,
@@ -150,8 +150,8 @@
 				8EA46CCDC71447C98FDEDCDD /* Poppins-Bold.ttf */,
 			);
 			name = Resources;
-			sourceTree = "<group>";
 			path = "";
+			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
 
@@ -310,6 +310,7 @@
 			inputPaths = (
 				"$(SRCROOT)/.xcode.env",
 				"$(SRCROOT)/.xcode.env.local",
+				"$(SRCROOT)/dealermanagement/DealerManagement.entitlements",
 				"$(SRCROOT)/Pods/Target Support Files/Pods-dealermanagement/expo-configure-project.sh",
 			);
 			name = "[Expo] Configure project";
@@ -332,6 +333,7 @@
 				"${PODS_CONFIGURATION_BUILD_DIR}/EXConstants/EXConstants.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/EXConstants/ExpoConstants_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/ExpoFileSystem/ExpoFileSystem_privacy.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/ExpoSystemUI/ExpoSystemUI_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/RNCAsyncStorage/RNCAsyncStorage_resources.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/React-Core/React-Core_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/React-cxxreact/React-cxxreact_privacy.bundle",
@@ -341,6 +343,7 @@
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/EXConstants.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoConstants_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoFileSystem_privacy.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoSystemUI_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RNCAsyncStorage_resources.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/React-Core_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/React-cxxreact_privacy.bundle",
@@ -371,6 +374,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = dealermanagement/DealerManagement.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_BITCODE = NO;
 				GCC_PREPROCESSOR_DEFINITIONS = (
@@ -392,13 +396,12 @@
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
 				PRODUCT_BUNDLE_IDENTIFIER = org.name.dealermanagement;
-				PRODUCT_NAME = "DealerManagement";
+				PRODUCT_NAME = DealerManagement;
 				SWIFT_OBJC_BRIDGING_HEADER = "dealermanagement/dealermanagement-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
-				VERSIONING_SYSTEM = "apple-generic";
 				TARGETED_DEVICE_FAMILY = "1,2";
-				CODE_SIGN_ENTITLEMENTS = dealermanagement/DealerManagement.entitlements;
+				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Debug;
 		};
@@ -408,6 +411,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = dealermanagement/DealerManagement.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
 				INFOPLIST_FILE = dealermanagement/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.4;
@@ -424,12 +428,11 @@
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
 				PRODUCT_BUNDLE_IDENTIFIER = org.name.dealermanagement;
-				PRODUCT_NAME = "DealerManagement";
+				PRODUCT_NAME = DealerManagement;
 				SWIFT_OBJC_BRIDGING_HEADER = "dealermanagement/dealermanagement-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
-				VERSIONING_SYSTEM = "apple-generic";
 				TARGETED_DEVICE_FAMILY = "1,2";
-				CODE_SIGN_ENTITLEMENTS = dealermanagement/DealerManagement.entitlements;
+				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Release;
 		};
