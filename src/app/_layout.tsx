@@ -37,7 +37,8 @@ export default function RootLayout() {
             headerShown: false,
             contentStyle: { backgroundColor: navigationTheme.colors.background },
           }}>
-          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(app)" />
         </Stack>
       </ThemeProvider>
     </SafeAreaProvider>
