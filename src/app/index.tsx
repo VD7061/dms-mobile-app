@@ -1,9 +1,11 @@
 import { StyleSheet, Text, View } from 'react-native';
+import { Fonts } from '@/constants/fonts';
 
 export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Dealer Management</Text>
+      <Text style={styles.subtitle}>Poppins is working</Text>
     </View>
   );
 }
@@ -16,7 +18,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
+    fontFamily: Fonts.semiBold,
     fontSize: 24,
-    fontWeight: '600',
+  },
+  subtitle: {
+    fontFamily: Fonts.regular,
+    fontSize: 16,
+    marginTop: 8,
+    color: '#666',
   },
 });
