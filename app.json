@@ -2,6 +2,12 @@
   "expo": {
     "name": "dealer_management",
     "slug": "dealer_management",
-    "version": "1.0.0"
+    "version": "1.0.0",
+    "scheme": "dealermanagement",
+    "plugins": [
+      "expo-router",
+      "expo-splash-screen",
+      "expo-font"
+    ]
   }
 }
