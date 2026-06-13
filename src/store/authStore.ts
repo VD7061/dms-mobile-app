@@ -10,6 +10,7 @@ interface AuthState {
   setIsLoggedIn: (loggedIn: boolean) => void;
   setFullName: (name: string) => void;
   completeProfile: (name: string) => void;
+  logout: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -22,6 +23,7 @@ export const useAuthStore = create<AuthState>()(
       setIsLoggedIn: (loggedIn) => set({ isLoggedIn: loggedIn }),
       setFullName: (name) => set({ fullName: name }),
       completeProfile: (name) => set({ fullName: name, isLoggedIn: true }),
+      logout: () => set({ isLoggedIn: false, fullName: '' }),
     }),
     {
       name: 'auth-storage',
