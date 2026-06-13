@@ -101,3 +101,34 @@ export const Colors = {
 
 export type ColorScheme = keyof typeof Colors;
 export type ThemeColors = (typeof Colors)[ColorScheme];
+
+// Section 5 — Typography
+// Font sizes from the design system. Each scale also maps to a Poppins weight.
+export const FontFamily = {
+  regular: 'Poppins-Regular',
+  medium: 'Poppins-Medium',
+  semibold: 'Poppins-SemiBold',
+  bold: 'Poppins-Bold',
+} as const;
+
+export const Typography = {
+  display: { fontFamily: FontFamily.bold, fontSize: 40 },
+  hero: { fontFamily: FontFamily.bold, fontSize: 28 },
+  title: { fontFamily: FontFamily.semibold, fontSize: 21 },
+  screenTitle: { fontFamily: FontFamily.semibold, fontSize: 15 },
+  body: { fontFamily: FontFamily.regular, fontSize: 13 },
+  caption: { fontFamily: FontFamily.regular, fontSize: 11 },
+  micro: { fontFamily: FontFamily.regular, fontSize: 10 },
+  button: { fontFamily: FontFamily.medium, fontSize: 16 },
+} as const;
+
+export type TypographyVariant = keyof typeof Typography;
+
+// Section 6 — Grid System
+export const Grid = {
+  columns: {
+    count: 4,
+    margin: 20,
+    gutter: 16,
+  },
+} as const;
