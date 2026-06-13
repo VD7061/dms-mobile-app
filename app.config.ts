@@ -19,7 +19,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     package: 'com.dealermanagement',
     adaptiveIcon: {
       foregroundImage: './assets/icon.png',
-      backgroundColor: '#ffffff',
+      backgroundColor: '#f8f9ff',
     },
   },
 
@@ -29,22 +29,22 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       'expo-splash-screen',
       {
-        backgroundColor: '#ffffff',
+        backgroundColor: '#f8f9ff',
         image: './assets/splash-icon.png',
         imageWidth: 200,
         ios: {
-          backgroundColor: '#ffffff',
+          backgroundColor: '#f8f9ff',
           image: './assets/splash-icon.png',
           imageWidth: 200,
         },
         android: {
-          backgroundColor: '#ffffff',
+          backgroundColor: '#f8f9ff',
           image: './assets/splash-icon.png',
           imageWidth: 200,
         },
         dark: {
           image: './assets/splash-icon.png',
-          backgroundColor: '#000000',
+          backgroundColor: '#031427',
         },
       },
     ],
