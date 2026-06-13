@@ -113,7 +113,8 @@ export const FontFamily = {
 
 export const Typography = {
   display: { fontFamily: FontFamily.bold, fontSize: 40 },
-  hero: { fontFamily: FontFamily.bold, fontSize: 28 },
+  hero: { fontFamily: FontFamily.semibold, fontSize: 28 },
+  hero2: { fontFamily: FontFamily.bold, fontSize: 28 },
   title: { fontFamily: FontFamily.semibold, fontSize: 21 },
   screenTitle: { fontFamily: FontFamily.semibold, fontSize: 15 },
   body: { fontFamily: FontFamily.regular, fontSize: 13 },

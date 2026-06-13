@@ -1,8 +1,9 @@
-import { View, Text, Image, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Image, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import { Typography, Grid } from '@/constants/theme';
+import { Button } from '@/components/ui';
 import { useAuthStore } from '@/store';
 
 const LOGO_SIZE = 112;
@@ -62,7 +63,7 @@ export default function OnboardingScreen() {
                   style={[
                     Typography.caption,
                     styles.featureLabel,
-                    { color: colors.secondary },
+                    { color: colors['primary'] },
                   ]}>
                   {feature.label}
                 </Text>
@@ -71,16 +72,7 @@ export default function OnboardingScreen() {
           </View>
         </View>
 
-        <Pressable
-          onPress={handleGetStarted}
-          style={({ pressed }) => [
-            styles.button,
-            { backgroundColor: colors.primary, opacity: pressed ? 0.92 : 1 },
-          ]}>
-          <Text style={[Typography.button, styles.buttonLabel, { color: colors['on-primary'] }]}>
-            Get Started
-          </Text>
-        </Pressable>
+        <Button label="Get Started" onPress={handleGetStarted}  />
       </View>
     </SafeAreaView>
   );
@@ -140,16 +132,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: Typography.caption.fontFamily,
     fontWeight: '500',
-  },
-  button: {
-    width: '100%',
-    paddingVertical: 16,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonLabel: {
-    fontFamily: Typography.button.fontFamily,
-    fontWeight: '600',
   },
 });

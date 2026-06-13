@@ -5,22 +5,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import { Typography, Grid } from '@/constants/theme';
-import { BackButton, Button, TextField } from '@/components/ui';
-import { OtpSheet } from './OtpSheet';
+import { Button, TextField } from '@/components/ui';
+import { useAuthStore } from '@/store';
 
-export function LoginScreen() {
+export function ProfileSetupScreen() {
   const { colors } = useTheme();
   const router = useRouter();
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [showOtpSheet, setShowOtpSheet] = useState(false);
+  const completeProfile = useAuthStore((s) => s.completeProfile);
+  const [fullName, setFullName] = useState('');
 
-  const handleGetOtp = () => {
-    setShowOtpSheet(true);
-  };
-
-  const handleVerifyOtp = (_otp: string) => {
-    setShowOtpSheet(false);
-    router.replace('/(auth)/profile');
+  const handleContinue = () => {
+    completeProfile(fullName.trim());
+    router.replace('/(app)');
   };
 
   return (
@@ -31,11 +27,9 @@ export function LoginScreen() {
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.content}>
-          <BackButton />
-
           <View style={styles.header}>
             <Text style={[Typography.hero, styles.title, { color: colors['on-background'] }]}>
-              Enter your phone{'\n'}number
+              Welcome!
             </Text>
             <Text
               style={[
@@ -43,43 +37,32 @@ export function LoginScreen() {
                 styles.subtitle,
                 { color: colors['on-surface-variant'] },
               ]}>
-              We'll send a one-time password to verify your number
+              Set up your profile to get started
             </Text>
           </View>
 
           <TextField
-            label="Phone number"
+            label="Full name"
             labelIcon={
-              <Ionicons name="call-outline" size={14} color={colors.primary} />
+              <Ionicons name="person-outline" size={14} color={colors.primary} />
             }
-            value={phoneNumber}
-            onChangeText={setPhoneNumber}
-            placeholder="+91 XXXXX XXXXX"
-            keyboardType="phone-pad"
-            autoComplete="tel"
-            textContentType="telephoneNumber"
+            value={fullName}
+            onChangeText={setFullName}
+            placeholder="Enter your name"
+            autoComplete="name"
+            textContentType="name"
+            autoCapitalize="words"
           />
 
           <View style={styles.footer}>
             <Button
-              label="Get OTP"
-              onPress={handleGetOtp}
-              disabled={phoneNumber.trim().length === 0}
+              label="Continue to Dashboard"
+              onPress={handleContinue}
+              disabled={fullName.trim().length === 0}
             />
-            <Text style={[Typography.micro, styles.terms, { color: colors['on-surface-variant'] }]}>
-              By continuing you agree to our{' '}
-              <Text style={{ color: colors.primary }}>Terms of service</Text>
-            </Text>
           </View>
         </View>
       </KeyboardAvoidingView>
-
-      <OtpSheet
-        visible={showOtpSheet}
-        phoneNumber={phoneNumber}
-        onClose={() => setShowOtpSheet(false)}
-        onVerify={handleVerifyOtp}
-      />
     </SafeAreaView>
   );
 }
@@ -111,11 +94,5 @@ const styles = StyleSheet.create({
   },
   footer: {
     marginTop: 'auto',
-    gap: 16,
-  },
-  terms: {
-    textAlign: 'center',
-    lineHeight: 16,
-    fontFamily: Typography.micro.fontFamily,
   },
 });
