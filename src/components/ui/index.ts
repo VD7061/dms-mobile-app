@@ -6,3 +6,4 @@ export { TextField } from './TextField';
 export { TabScreen } from './TabScreen';
 export { ScreenTopArea } from './ScreenTopArea';
 export { SkeletonBox } from './SkeletonBox';
+export { FilterChips } from './FilterChips';

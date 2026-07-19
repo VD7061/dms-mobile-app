@@ -1,5 +1,3 @@
-import { TabScreen } from '@/components/ui/TabScreen';
+import { VehiclesScreen } from '@/views/vehicles';
 
-export default function VehiclesTab() {
-  return <TabScreen title="Vehicles" subtitle="Manage dealership inventory" />;
-}
+export default VehiclesScreen;
