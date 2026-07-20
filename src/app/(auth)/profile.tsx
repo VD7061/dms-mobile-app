@@ -1,3 +1,3 @@
-import { ProfileSetupScreen } from '@/views/auth/profile';
+import { LoginScreen } from '@/views/auth/login';
 
-export default ProfileSetupScreen;
+export default LoginScreen;

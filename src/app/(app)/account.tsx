@@ -4,16 +4,21 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '@/components/ui';
 import { Typography, Grid } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
-import { useAuthStore } from '@/store';
+import { logout } from '@/services';
+import { useSessionStore } from '@/store';
 
 export default function AccountTab() {
   const router = useRouter();
   const { colors } = useTheme();
-  const fullName = useAuthStore((s) => s.fullName);
-  const logout = useAuthStore((s) => s.logout);
+  const fullName = useSessionStore((s) => s.name);
+  const logoutLocal = useSessionStore((s) => s.logoutLocal);
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } finally {
+      logoutLocal();
+    }
     router.replace('/(auth)/login');
   };
 

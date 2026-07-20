@@ -1,5 +1,9 @@
-import { TabScreen } from '@/components/ui/TabScreen';
+import { PermissionGate, TabScreen } from '@/components/ui';
 
 export default function TagsTab() {
-  return <TabScreen title="Tags" subtitle="Organize vehicle records" />;
+  return (
+    <PermissionGate permission="tags.manage">
+      <TabScreen title="Tags" subtitle="Organize vehicle records" />
+    </PermissionGate>
+  );
 }

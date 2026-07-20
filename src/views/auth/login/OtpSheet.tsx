@@ -9,6 +9,8 @@ const RESEND_SECONDS = 28;
 
 type OtpSheetProps = {
   visible: boolean;
+  error?: string | null;
+  loading?: boolean;
   phoneNumber: string;
   onClose: () => void;
   onVerify: (otp: string) => void;
@@ -24,7 +26,14 @@ function maskPhoneNumber(phone: string) {
   return `+91 XXXXX X${digits.slice(-4)}`;
 }
 
-export function OtpSheet({ visible, phoneNumber, onClose, onVerify }: OtpSheetProps) {
+export function OtpSheet({
+  visible,
+  error,
+  loading = false,
+  phoneNumber,
+  onClose,
+  onVerify,
+}: OtpSheetProps) {
   const { colors, isDark } = useTheme();
   const [otp, setOtp] = useState('');
   const [secondsLeft, setSecondsLeft] = useState(RESEND_SECONDS);
@@ -93,6 +102,12 @@ export function OtpSheet({ visible, phoneNumber, onClose, onVerify }: OtpSheetPr
         <OtpInput value={otp} onChange={setOtp} autoFocus={visible} />
       </View>
 
+      {error ? (
+        <Text style={[Typography.body, styles.error, { color: colors.error }]}>
+          {error}
+        </Text>
+      ) : null}
+
       <Text style={[Typography.body, styles.resend, { color: colors['on-surface-variant'] }]}>
         Didn't receive it?{' '}
         <Text style={{ color: isDark ? colors['secondary-container'] : colors['primary-container'] }}>
@@ -100,7 +115,11 @@ export function OtpSheet({ visible, phoneNumber, onClose, onVerify }: OtpSheetPr
         </Text>
       </Text>
 
-      <Button label="Verify" onPress={handleVerify} disabled={otp.length !== 6} />
+      <Button
+        label={loading ? 'Verifying...' : 'Verify'}
+        onPress={handleVerify}
+        disabled={loading || otp.length !== 6}
+      />
     </BottomSheet>
   );
 }
@@ -132,6 +151,11 @@ const styles = StyleSheet.create({
   resend: {
     textAlign: 'center',
     marginBottom: 24,
+    lineHeight: 20,
+  },
+  error: {
+    textAlign: 'center',
+    marginBottom: 14,
     lineHeight: 20,
   },
 });

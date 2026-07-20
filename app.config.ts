@@ -63,5 +63,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
 
   extra: {
     appEnv: process.env.APP_ENV ?? 'development',
+    apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL ?? '',
   },
 });

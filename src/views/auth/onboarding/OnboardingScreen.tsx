@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import { Typography, Grid } from '@/constants/theme';
 import { Button } from '@/components/ui';
-import { useAuthStore } from '@/store';
+import { useSessionStore } from '@/store';
 
 const LOGO_SIZE = 112;
 const FEATURE_ICON_SIZE = 24;
@@ -18,11 +18,11 @@ const features = [
 export default function OnboardingScreen() {
   const { colors } = useTheme();
   const router = useRouter();
-  const setHasSeenOnboarding = useAuthStore((s) => s.setHasSeenOnboarding);
+  const setHasSeenOnboarding = useSessionStore((s) => s.setHasSeenOnboarding);
 
   const handleGetStarted = () => {
     setHasSeenOnboarding(true);
-    router.push('/login');
+    router.push('/(auth)/login');
   };
 
   return (

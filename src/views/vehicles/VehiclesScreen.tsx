@@ -3,8 +3,10 @@ import { useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Grid } from '@/constants/theme';
+import { useCan } from '@/hooks/useCan';
 import { useTheme } from '@/hooks/useTheme';
 import { AddVehicleButton } from './components/AddVehicleButton';
+import { PermissionGate } from '@/components/ui';
 import { InventoryHeader } from './components/InventoryHeader';
 import { VehicleCard } from './components/VehicleCard';
 import { VehicleCategoryTabs } from './components/VehicleCategoryTabs';
@@ -19,6 +21,8 @@ export function VehiclesScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const { width: screenWidth } = useWindowDimensions();
+  const canViewVehicles = useCan('vehicles.view');
+  const canCreateVehicle = useCan('vehicles.create');
   const [selectedCategory, setSelectedCategory] = useState<VehicleCategory>('Cars');
   const [selectedStatus, setSelectedStatus] = useState<VehicleStatusFilter>('All');
   const [searchQuery, setSearchQuery] = useState('');
@@ -79,6 +83,14 @@ export function VehiclesScreen() {
     });
   }, [searchQuery, selectedCategoryVehicles, selectedStatus]);
 
+  if (!canViewVehicles) {
+    return (
+      <PermissionGate permission="vehicles.view">
+        <View />
+      </PermissionGate>
+    );
+  }
+
   return (
     <SafeAreaView
       style={[styles.screen, { backgroundColor: colors.background }]}
@@ -117,16 +129,18 @@ export function VehiclesScreen() {
         </View>
       </ScrollView>
 
-      <View
-        style={[
-          styles.fixedFooter,
-          {
-            backgroundColor: colors.background,
-            paddingHorizontal: horizontalPadding,
-          },
-        ]}>
-        <AddVehicleButton />
-      </View>
+      {canCreateVehicle ? (
+        <View
+          style={[
+            styles.fixedFooter,
+            {
+              backgroundColor: colors.background,
+              paddingHorizontal: horizontalPadding,
+            },
+          ]}>
+          <AddVehicleButton />
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 }

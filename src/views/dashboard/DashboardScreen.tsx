@@ -3,7 +3,8 @@ import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/useTheme';
 import { Grid } from '@/constants/theme';
-import { useAuthStore } from '@/store';
+import { useActiveShowroom } from '@/hooks/useActiveShowroom';
+import { useSessionStore } from '@/store';
 import { ScreenTopArea } from '@/components/ui';
 import { MetricCard } from './components/MetricCard';
 import { MetricGrid } from './components/MetricGrid';
@@ -21,9 +22,10 @@ import type { TimeRange } from './types';
 export function DashboardScreen() {
   const { colors } = useTheme();
   const { width: screenWidth } = useWindowDimensions();
-  const fullName = useAuthStore((s) => s.fullName);
+  const fullName = useSessionStore((s) => s.name);
+  const activeShowroom = useActiveShowroom();
   const [selectedRange, setSelectedRange] = useState<TimeRange>('1W');
-  const firstName = fullName.trim().split(' ')[0] || 'Stevie';
+  const firstName = (fullName ?? '').trim().split(' ')[0] || 'Stevie';
   const horizontalPadding = screenWidth < 360 ? 16 : Grid.columns.margin;
   const cardGap = screenWidth < 360 ? 12 : Grid.columns.gutter;
   const contentWidth = screenWidth - horizontalPadding * 2;
@@ -37,7 +39,7 @@ export function DashboardScreen() {
       <View style={[styles.fixedHeader, { paddingHorizontal: horizontalPadding }]}>
         <ScreenTopArea
           title="AutoDeals"
-          eyebrow="Main Showroom"
+          eyebrow={activeShowroom?.showroom_name ?? 'Main Showroom'}
           greeting={`Good morning,\n${firstName}`}
           subtitle="Performance overview for your dealership"
         />

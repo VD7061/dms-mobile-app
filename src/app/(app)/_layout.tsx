@@ -2,6 +2,7 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useCan } from '@/hooks/useCan';
 import { useTheme } from '@/hooks/useTheme';
 
 type TabIconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -9,6 +10,9 @@ type TabIconName = React.ComponentProps<typeof Ionicons>['name'];
 export default function AppLayout() {
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
+  const canViewReports = useCan('reports.view');
+  const canManageTags = useCan('tags.manage');
+  const canViewVehicles = useCan('vehicles.view');
   const bottomPadding = Math.max(insets.bottom, 18);
   const tabBarBackground = isDark ? colors['secondary-container'] : colors.primary;
   const activeTabColor = isDark ? colors['on-surface'] : colors['on-primary'];
@@ -60,6 +64,7 @@ export default function AppLayout() {
       <Tabs.Screen
         name="vehicles"
         options={{
+          href: canViewVehicles ? undefined : null,
           title: 'Vehicles',
           tabBarIcon: renderTabIcon('car'),
         }}
@@ -67,6 +72,7 @@ export default function AppLayout() {
       <Tabs.Screen
         name="reports"
         options={{
+          href: canViewReports ? undefined : null,
           title: 'Reports',
           tabBarIcon: renderTabIcon('receipt'),
         }}
@@ -74,6 +80,7 @@ export default function AppLayout() {
       <Tabs.Screen
         name="tags"
         options={{
+          href: canManageTags ? undefined : null,
           title: 'Tags',
           tabBarIcon: renderTabIcon('pricetag'),
         }}
