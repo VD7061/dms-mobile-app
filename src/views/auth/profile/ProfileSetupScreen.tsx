@@ -11,12 +11,12 @@ import { useAuthStore } from '@/store';
 export function ProfileSetupScreen() {
   const { colors } = useTheme();
   const router = useRouter();
-  const completeProfile = useAuthStore((s) => s.completeProfile);
+  const setStoredFullName = useAuthStore((s) => s.setFullName);
   const [fullName, setFullName] = useState('');
 
   const handleContinue = () => {
-    completeProfile(fullName.trim());
-    router.replace('/(app)');
+    setStoredFullName(fullName.trim());
+    router.push('/(auth)/welcome');
   };
 
   return (
@@ -56,7 +56,7 @@ export function ProfileSetupScreen() {
 
           <View style={styles.footer}>
             <Button
-              label="Continue to Dashboard"
+              label="Continue"
               onPress={handleContinue}
               disabled={fullName.trim().length === 0}
             />
