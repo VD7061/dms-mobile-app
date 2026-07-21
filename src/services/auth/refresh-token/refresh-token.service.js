@@ -1,4 +1,4 @@
-import { httpClient } from '../../http';
+import { api } from '../../http';
 import { refreshTokenEndpoint } from './refresh-token.api';
 
 /**
@@ -7,5 +7,5 @@ import { refreshTokenEndpoint } from './refresh-token.api';
  * refresh.
  */
 export function refreshToken({ refreshToken: token }) {
-  return httpClient.post(refreshTokenEndpoint, { refreshToken: token }, { meta: { auth: false } });
+  return api.post(refreshTokenEndpoint, { refreshToken: token }, { auth: false });
 }

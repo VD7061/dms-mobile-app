@@ -1,10 +1,10 @@
 import axios from 'axios';
 import Constants from 'expo-constants';
-import { getDeviceId } from './deviceId';
+import { getApiPlatform, getDeviceId } from './deviceId';
 import { clearTokens, getTokens, setTokens } from './tokenStorage';
 
 const apiBaseUrl = Constants.expoConfig?.extra?.apiBaseUrl || '';
-const apiPlatform = Constants.expoConfig?.extra?.apiPlatform || 'web';
+const apiPlatform = getApiPlatform();
 
 export class ApiError extends Error {
   constructor(message, details = {}) {

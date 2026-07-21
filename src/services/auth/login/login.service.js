@@ -1,6 +1,6 @@
-import { httpClient } from '../../http';
+import { api } from '../../http';
 import { loginEndpoint } from './login.api';
 
 export function login({ countryCode, phoneNumber }) {
-  return httpClient.post(loginEndpoint, { countryCode, phoneNumber }, { meta: { auth: false } });
+  return api.post(loginEndpoint, { countryCode, phoneNumber }, { auth: false });
 }

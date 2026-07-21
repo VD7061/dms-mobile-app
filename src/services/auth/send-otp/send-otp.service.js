@@ -1,6 +1,6 @@
-import { httpClient } from '../../http';
+import { api } from '../../http';
 import { sendOtpEndpoint } from './send-otp.api';
 
 export function sendOtp({ countryCode, phoneNumber }) {
-  return httpClient.post(sendOtpEndpoint, { countryCode, phoneNumber }, { meta: { auth: false } });
+  return api.post(sendOtpEndpoint, { countryCode, phoneNumber }, { auth: false });
 }

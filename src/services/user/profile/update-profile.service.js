@@ -1,6 +1,6 @@
-import { httpClient } from '../../http';
+import { api } from '../../http';
 import { updateProfileEndpoint } from './update-profile.api';
 
 export function updateProfile({ name }) {
-  return httpClient.patch(updateProfileEndpoint, { name });
+  return api.patch(updateProfileEndpoint, { name });
 }

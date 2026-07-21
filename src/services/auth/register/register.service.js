@@ -1,6 +1,6 @@
-import { httpClient } from '../../http';
+import { api } from '../../http';
 import { registerEndpoint } from './register.api';
 
 export function register({ countryCode, phoneNumber }) {
-  return httpClient.post(registerEndpoint, { countryCode, phoneNumber }, { meta: { auth: false } });
+  return api.post(registerEndpoint, { countryCode, phoneNumber }, { auth: false });
 }
