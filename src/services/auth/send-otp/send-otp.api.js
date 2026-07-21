@@ -37,7 +37,7 @@ export const sendOtpApi = {
     },
   ],
   requestBodyExample: {
-    countryCode: '+91',
+    countryCode: '91',
     phoneNumber: '9999999999',
   },
   curlExample: `curl --location -g '{{base_url}}/api/v1/auth/send-otp' \\
@@ -45,7 +45,7 @@ export const sendOtpApi = {
 --header 'X-Platform: web' \\
 --header 'X-Device-Id: browser-1' \\
 --data '{
-  "countryCode": "+91",
+  "countryCode": "91",
   "phoneNumber": "9999999999"
 }'`,
   successResponseExample: {

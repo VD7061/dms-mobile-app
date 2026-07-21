@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '@/components/ui';
 import { Grid, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
@@ -30,10 +30,12 @@ const tabs = [
 export function WelcomeSetupScreen() {
   const { colors } = useTheme();
   const router = useRouter();
+  const params = useLocalSearchParams<{ step?: string }>();
   const fullName = useAuthStore((s) => s.fullName);
   const completeProfile = useAuthStore((s) => s.completeProfile);
-  const [step, setStep] = useState<SetupStep>('welcome');
-  const [showroomComplete, setShowroomComplete] = useState(false);
+  const startsAtVehicle = params.step === 'vehicle';
+  const [step, setStep] = useState<SetupStep>(startsAtVehicle ? 'vehicle' : 'welcome');
+  const [showroomComplete, setShowroomComplete] = useState(startsAtVehicle);
   const [vehicleComplete, setVehicleComplete] = useState(false);
   const [showroomName, setShowroomName] = useState('AutoDeals Guwahati');
   const [locationPinned, setLocationPinned] = useState(false);

@@ -7,16 +7,35 @@ import { useTheme } from '@/hooks/useTheme';
 import { Typography, Grid } from '@/constants/theme';
 import { Button, TextField } from '@/components/ui';
 import { useAuthStore } from '@/store';
+import { updateProfile } from '@/services';
 
 export function ProfileSetupScreen() {
   const { colors } = useTheme();
   const router = useRouter();
   const setStoredFullName = useAuthStore((s) => s.setFullName);
   const [fullName, setFullName] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const handleContinue = () => {
-    setStoredFullName(fullName.trim());
-    router.push('/(auth)/welcome');
+  const handleContinue = async () => {
+    const nextName = fullName.trim();
+
+    if (!nextName || isSaving) {
+      return;
+    }
+
+    setErrorMessage('');
+    setIsSaving(true);
+
+    try {
+      await updateProfile({ name: nextName });
+      setStoredFullName(nextName);
+      router.replace('/(setup)/loading');
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Unable to update profile.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -54,11 +73,18 @@ export function ProfileSetupScreen() {
             autoCapitalize="words"
           />
 
+          {errorMessage ? (
+            <Text style={[Typography.caption, styles.errorText, { color: colors.error }]}>
+              {errorMessage}
+            </Text>
+          ) : null}
+
           <View style={styles.footer}>
             <Button
               label="Continue"
               onPress={handleContinue}
-              disabled={fullName.trim().length === 0}
+              disabled={fullName.trim().length === 0 || isSaving}
+              loading={isSaving}
             />
           </View>
         </View>
@@ -94,5 +120,9 @@ const styles = StyleSheet.create({
   },
   footer: {
     marginTop: 'auto',
+  },
+  errorText: {
+    marginTop: -12,
+    lineHeight: 17,
   },
 });

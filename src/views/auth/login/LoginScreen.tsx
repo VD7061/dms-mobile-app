@@ -6,21 +6,67 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import { Typography, Grid } from '@/constants/theme';
 import { BackButton, Button, TextField } from '@/components/ui';
+import { sendOtp } from '@/services';
+import { useAuthStore } from '@/store';
 import { OtpSheet } from './OtpSheet';
+
+type SendOtpResponse = {
+  data?: {
+    requestId?: string;
+    otpCode?: string;
+  };
+  requestId?: string;
+  otpCode?: string;
+};
 
 export function LoginScreen() {
   const { colors, isDark } = useTheme();
   const router = useRouter();
+  const setIsLoggedIn = useAuthStore((s) => s.setIsLoggedIn);
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [requestId, setRequestId] = useState('');
+  const [initialOtp, setInitialOtp] = useState('');
   const [showOtpSheet, setShowOtpSheet] = useState(false);
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const isValidPhoneNumber = phoneNumber.length === 10;
 
-  const handleGetOtp = () => {
-    setShowOtpSheet(true);
+  const handlePhoneNumberChange = (value: string) => {
+    setPhoneNumber(value.replace(/\D/g, '').slice(0, 10));
   };
 
-  const handleVerifyOtp = (_otp: string) => {
+  const handleGetOtp = async () => {
+    if (!isValidPhoneNumber || isSendingOtp) {
+      return;
+    }
+
+    setErrorMessage('');
+    setIsSendingOtp(true);
+
+    try {
+      const response = await sendOtp({ countryCode: '91', phoneNumber });
+      const responseData = response as unknown as SendOtpResponse;
+      const nextRequestId = responseData.data?.requestId ?? responseData.requestId;
+      const nextOtpCode = responseData.data?.otpCode ?? responseData.otpCode ?? '';
+
+      if (!nextRequestId) {
+        throw new Error('OTP request id missing from server response.');
+      }
+
+      setRequestId(nextRequestId);
+      setInitialOtp(nextOtpCode.replace(/\D/g, '').slice(0, 6));
+      setShowOtpSheet(true);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Unable to send OTP.');
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleVerifyOtp = () => {
+    setIsLoggedIn(true);
     setShowOtpSheet(false);
-    router.replace('/(auth)/profile');
+    router.replace('/(setup)/loading');
   };
 
   return (
@@ -53,18 +99,26 @@ export function LoginScreen() {
               <Ionicons name="call-outline" size={14} color={colors.primary} />
             }
             value={phoneNumber}
-            onChangeText={setPhoneNumber}
-            placeholder="+91 XXXXX XXXXX"
-            keyboardType="phone-pad"
+            onChangeText={handlePhoneNumberChange}
+            placeholder="XXXXX XXXXX"
+            keyboardType="number-pad"
             autoComplete="tel"
             textContentType="telephoneNumber"
+            maxLength={10}
           />
+
+          {errorMessage ? (
+            <Text style={[Typography.caption, styles.errorText, { color: colors.error }]}>
+              {errorMessage}
+            </Text>
+          ) : null}
 
           <View style={styles.footer}>
             <Button
               label="Get OTP"
               onPress={handleGetOtp}
-              disabled={phoneNumber.trim().length === 0}
+              disabled={!isValidPhoneNumber || isSendingOtp}
+              loading={isSendingOtp}
             />
             <Text style={[Typography.micro, styles.terms, { color: colors['on-surface-variant'] }]}>
               By continuing you agree to our{' '}
@@ -79,6 +133,8 @@ export function LoginScreen() {
       <OtpSheet
         visible={showOtpSheet}
         phoneNumber={phoneNumber}
+        requestId={requestId}
+        initialOtp={initialOtp}
         onClose={() => setShowOtpSheet(false)}
         onVerify={handleVerifyOtp}
       />
@@ -114,6 +170,10 @@ const styles = StyleSheet.create({
   footer: {
     marginTop: 'auto',
     gap: 16,
+  },
+  errorText: {
+    marginTop: -12,
+    lineHeight: 17,
   },
   terms: {
     textAlign: 'center',

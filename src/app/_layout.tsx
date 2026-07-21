@@ -25,7 +25,7 @@ function RootNavigator() {
       }
     } else {
       if (inAuthGroup) {
-        router.replace('/(app)');
+        router.replace('/(setup)/loading');
       }
     }
   }, [isLoggedIn, segments, router]);
@@ -37,6 +37,7 @@ function RootNavigator() {
         contentStyle: { backgroundColor: navigationTheme.colors.background },
       }}>
       <Stack.Screen name="(auth)" />
+      <Stack.Screen name="(setup)" />
       <Stack.Screen name="(app)" />
       <Stack.Screen name="vehicle/[id]" />
     </Stack>
