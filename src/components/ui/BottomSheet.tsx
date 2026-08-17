@@ -1,6 +1,9 @@
 import type { ReactNode } from 'react';
 import {
+  Keyboard,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   View,
@@ -21,28 +24,45 @@ type BottomSheetProps = {
 export function BottomSheet({ visible, onClose, children, style }: BottomSheetProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const handleClose = () => {
+    Keyboard.dismiss();
+    onClose();
+  };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <Pressable style={styles.backdrop} onPress={onClose} />
-        <View
-          style={[
-            styles.sheet,
-            {
-              backgroundColor: colors.background,
-              paddingBottom: Math.max(insets.bottom, 24),
-            },
-            style,
-          ]}>
-          {children}
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      statusBarTranslucent
+      onRequestClose={handleClose}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}>
+        <View style={styles.overlay}>
+          <Pressable style={styles.backdrop} onPress={handleClose} />
+          <View
+            style={[
+              styles.sheet,
+              {
+                backgroundColor: colors.background,
+                paddingBottom: Math.max(insets.bottom, 24),
+              },
+              style,
+            ]}>
+            {children}
+          </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',

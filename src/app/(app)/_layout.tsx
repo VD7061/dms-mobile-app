@@ -1,13 +1,18 @@
 import { Tabs } from 'expo-router';
+import { Redirect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/useTheme';
+import { useSession } from '@/hooks/useSession';
+import { useAuthStore } from '@/store';
 
 type TabIconName = React.ComponentProps<typeof Ionicons>['name'];
 
 export default function AppLayout() {
   const { colors, isDark } = useTheme();
+  const { isLoading, hasTokens } = useSession();
+  const canEnterApp = useAuthStore((s) => s.canEnterApp);
   const insets = useSafeAreaInsets();
   const bottomPadding = Math.max(insets.bottom, 18);
   const tabBarBackground = isDark ? colors['secondary-container'] : colors.primary;
@@ -33,6 +38,22 @@ export default function AppLayout() {
         />
       </View>
     );
+
+  if (isLoading) {
+    return (
+      <View style={[styles.loadingScreen, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  if (!hasTokens) {
+    return <Redirect href="/(auth)" />;
+  }
+
+  if (!canEnterApp) {
+    return <Redirect href="/(setup)/loading" />;
+  }
 
   return (
     <Tabs
@@ -85,11 +106,22 @@ export default function AppLayout() {
           tabBarIcon: renderTabIcon('person'),
         }}
       />
+      <Tabs.Screen
+        name="vehicle/[id]"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }
 
 const styles = StyleSheet.create({
+  loadingScreen: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   tabIcon: {
     alignItems: 'center',
     gap: 7,

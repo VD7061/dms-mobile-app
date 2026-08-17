@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, Keyboard, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -23,13 +23,23 @@ export function LoginScreen() {
   const { colors, isDark } = useTheme();
   const router = useRouter();
   const setIsLoggedIn = useAuthStore((s) => s.setIsLoggedIn);
+  const setCanEnterApp = useAuthStore((s) => s.setCanEnterApp);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [requestId, setRequestId] = useState('');
   const [initialOtp, setInitialOtp] = useState('');
   const [showOtpSheet, setShowOtpSheet] = useState(false);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const otpSheetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isValidPhoneNumber = phoneNumber.length === 10;
+
+  useEffect(() => {
+    return () => {
+      if (otpSheetTimerRef.current) {
+        clearTimeout(otpSheetTimerRef.current);
+      }
+    };
+  }, []);
 
   const handlePhoneNumberChange = (value: string) => {
     setPhoneNumber(value.replace(/\D/g, '').slice(0, 10));
@@ -55,7 +65,12 @@ export function LoginScreen() {
 
       setRequestId(nextRequestId);
       setInitialOtp(nextOtpCode.replace(/\D/g, '').slice(0, 6));
-      setShowOtpSheet(true);
+      Keyboard.dismiss();
+
+      otpSheetTimerRef.current = setTimeout(
+        () => setShowOtpSheet(true),
+        Platform.OS === 'android' ? 250 : 120
+      );
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Unable to send OTP.');
     } finally {
@@ -64,9 +79,16 @@ export function LoginScreen() {
   };
 
   const handleVerifyOtp = () => {
+    Keyboard.dismiss();
     setIsLoggedIn(true);
+    setCanEnterApp(false);
     setShowOtpSheet(false);
     router.replace('/(setup)/loading');
+  };
+
+  const handleCloseOtpSheet = () => {
+    Keyboard.dismiss();
+    setShowOtpSheet(false);
   };
 
   return (
@@ -75,7 +97,8 @@ export function LoginScreen() {
       edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        behavior={showOtpSheet ? undefined : Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}>
         <View style={styles.content}>
           <BackButton />
 
@@ -135,7 +158,7 @@ export function LoginScreen() {
         phoneNumber={phoneNumber}
         requestId={requestId}
         initialOtp={initialOtp}
-        onClose={() => setShowOtpSheet(false)}
+        onClose={handleCloseOtpSheet}
         onVerify={handleVerifyOtp}
       />
     </SafeAreaView>

@@ -1,21 +1,15 @@
-import { useRouter } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '@/components/ui';
 import { Typography, Grid } from '@/constants/theme';
+import { useLogout } from '@/hooks/useLogout';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthStore } from '@/store';
 
 export default function AccountTab() {
-  const router = useRouter();
   const { colors } = useTheme();
   const fullName = useAuthStore((s) => s.fullName);
-  const logout = useAuthStore((s) => s.logout);
-
-  const handleLogout = () => {
-    logout();
-    router.replace('/(auth)/login');
-  };
+  const { isLoggingOut, logout } = useLogout();
 
   return (
     <SafeAreaView
@@ -29,7 +23,12 @@ export default function AccountTab() {
           </Text>
         </View>
 
-        <Button label="Logout" variant="outline" onPress={handleLogout} />
+        <Button
+          label={isLoggingOut ? 'Logging out' : 'Logout'}
+          variant="outline"
+          onPress={logout}
+          loading={isLoggingOut}
+        />
       </View>
     </SafeAreaView>
   );

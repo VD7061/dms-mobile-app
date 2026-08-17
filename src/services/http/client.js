@@ -1,6 +1,7 @@
 import axios from 'axios';
 import Constants from 'expo-constants';
 import { getApiPlatform, getDeviceId } from './deviceId';
+import { publishDevApiError } from './devApiErrors';
 import { clearTokens, getTokens, setTokens } from './tokenStorage';
 
 const apiBaseUrl = Constants.expoConfig?.extra?.apiBaseUrl || '';
@@ -37,7 +38,17 @@ export const httpClient = axios.create({
 
 httpClient.interceptors.request.use(async (config) => {
   if (!apiBaseUrl) {
-    throw new ApiError('Missing API base URL. Set EXPO_PUBLIC_API_BASE_URL in .env.');
+    const error = new ApiError('Missing API base URL. Set EXPO_PUBLIC_API_BASE_URL in .env.');
+
+    publishDevApiError({
+      message: error.message,
+      method: config.method,
+      url: config.url,
+      status: error.status,
+      body: error.body,
+    });
+
+    throw error;
   }
 
   config.headers['X-Device-Id'] = await getDeviceId();
@@ -105,9 +116,22 @@ httpClient.interceptors.response.use(
       }
     }
 
-    throw new ApiError(getErrorMessage(response?.data, response?.status), {
+    const apiError = new ApiError(getErrorMessage(response?.data, response?.status), {
       status: response?.status ?? null,
       body: response?.data ?? null,
     });
+
+    if (config?.meta?.reportErrors !== false) {
+      publishDevApiError({
+        message: apiError.message,
+        method: config?.method,
+        url: config?.url,
+        status: apiError.status,
+        body: apiError.body,
+        headers: response?.headers,
+      });
+    }
+
+    throw apiError;
   }
 );

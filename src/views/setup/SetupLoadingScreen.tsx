@@ -10,6 +10,8 @@ import { useAuthStore } from '@/store';
 
 type ProfileData = {
   name?: string | null;
+  country_code?: string | null;
+  phone_number?: string | null;
   required_name?: boolean;
   has_showrooms?: boolean;
   has_vehicles?: boolean;
@@ -22,7 +24,10 @@ type ProfileResponse = {
 export function SetupLoadingScreen() {
   const { colors } = useTheme();
   const router = useRouter();
+  const setIsLoggedIn = useAuthStore((s) => s.setIsLoggedIn);
+  const setCanEnterApp = useAuthStore((s) => s.setCanEnterApp);
   const setFullName = useAuthStore((s) => s.setFullName);
+  const setProfileContact = useAuthStore((s) => s.setProfileContact);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [profileLoaded, setProfileLoaded] = useState(false);
@@ -44,30 +49,46 @@ export function SetupLoadingScreen() {
         setFullName(profile.name);
       }
 
+      setProfileContact({
+        countryCode: profile.country_code ?? undefined,
+        phoneNumber: profile.phone_number ?? undefined,
+      });
+
       setProfileLoaded(true);
 
       if (profile.required_name) {
+        setCanEnterApp(false);
         router.replace('/(setup)/profile');
         return;
       }
 
       if (!profile.has_showrooms) {
+        setCanEnterApp(false);
         router.replace('/(setup)/welcome');
         return;
       }
 
       if (!profile.has_vehicles) {
+        setCanEnterApp(false);
         router.replace('/(setup)/welcome?step=vehicle');
         return;
       }
 
+      setCanEnterApp(true);
       router.replace('/(app)');
     } catch (error) {
+      if (typeof error === 'object' && error !== null && 'status' in error && error.status === 401) {
+        setIsLoggedIn(false);
+        setCanEnterApp(false);
+        router.replace('/(auth)');
+        return;
+      }
+
       setErrorMessage(error instanceof Error ? error.message : 'Unable to load profile.');
     } finally {
       setIsLoading(false);
     }
-  }, [router, setFullName]);
+  }, [router, setCanEnterApp, setFullName, setIsLoggedIn, setProfileContact]);
 
   useEffect(() => {
     loadProfile();

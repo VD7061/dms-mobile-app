@@ -1,6 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
+  Image,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -11,14 +14,54 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '@/components/ui';
 import { Grid, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
+import { assignShowroom, createShowroom, createVehicle, getProfile } from '@/services';
 import { useAuthStore } from '@/store';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 type SetupStep = 'welcome' | 'showroom' | 'vehicle' | 'done';
+type PickedImage = {
+  uri: string;
+  name?: string | null;
+  type?: string | null;
+};
+type ShowroomRole = {
+  showroom_id: number;
+  external_showroom_id?: string | null;
+  showroom_name?: string | null;
+  role?: string | null;
+};
+type ProfileData = {
+  name?: string | null;
+  country_code?: string | null;
+  phone_number?: string | null;
+  required_name?: boolean;
+  has_showrooms?: boolean;
+  has_vehicles?: boolean;
+  showroom_roles?: ShowroomRole[] | null;
+};
+type ProfileResponse = {
+  data?: ProfileData;
+};
+type VehicleForm = {
+  vehicleType: string;
+  manufacturer: string;
+  model: string;
+  variant: string;
+  color: string;
+  yearOfManufacture: string;
+  rtoCode: string;
+  registrationNumber: string;
+  registrationState: string;
+  usageKm: string;
+  fuelType: string;
+  transmissionType: string;
+};
 
 const tabs = [
   'Welcome',
@@ -26,21 +69,78 @@ const tabs = [
   'Vehicle',
   'Done',
 ] as const;
+const PROFILE_RECHECK_DELAY_MS = 1000;
+const DASHBOARD_DELAY_MS = 5000;
+const demoVehicleDefaults = {
+  vehicleType: 'car',
+  manufacturer: 'Toyota',
+  model: 'Camry',
+  variant: 'LE',
+  color: 'Black',
+  yearOfManufacture: '2020',
+  rtoCode: 'AS-01',
+  registrationState: 'Assam',
+  usageKm: '50000',
+  fuelType: 'petrol',
+  transmissionType: 'manual',
+};
+
+function createDefaultVehicleForm(): VehicleForm {
+  return {
+    ...demoVehicleDefaults,
+    registrationNumber: generateRegistrationNumber(),
+  };
+}
+
+function generateRegistrationNumber() {
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const series = `${letters[randomInt(letters.length)]}${letters[randomInt(letters.length)]}`;
+  const number = String(randomInt(9000) + 1000);
+
+  return `AS01${series}${number}`;
+}
+
+function randomInt(max: number) {
+  return Math.floor(Math.random() * max);
+}
 
 export function WelcomeSetupScreen() {
   const { colors } = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams<{ step?: string }>();
   const fullName = useAuthStore((s) => s.fullName);
+  const countryCode = useAuthStore((s) => s.countryCode);
+  const phoneNumber = useAuthStore((s) => s.phoneNumber);
   const completeProfile = useAuthStore((s) => s.completeProfile);
+  const setCanEnterApp = useAuthStore((s) => s.setCanEnterApp);
+  const setFullName = useAuthStore((s) => s.setFullName);
+  const setProfileContact = useAuthStore((s) => s.setProfileContact);
   const startsAtVehicle = params.step === 'vehicle';
   const [step, setStep] = useState<SetupStep>(startsAtVehicle ? 'vehicle' : 'welcome');
   const [showroomComplete, setShowroomComplete] = useState(startsAtVehicle);
   const [vehicleComplete, setVehicleComplete] = useState(false);
   const [showroomName, setShowroomName] = useState('AutoDeals Guwahati');
+  const [address, setAddress] = useState('');
+  const [city, setCity] = useState('');
+  const [showroomState, setShowroomState] = useState('');
+  const [pincode, setPincode] = useState('');
+  const [latitude, setLatitude] = useState('');
+  const [longitude, setLongitude] = useState('');
   const [locationPinned, setLocationPinned] = useState(false);
-  const [contactNumber, setContactNumber] = useState('');
+  const [isFetchingLocation, setIsFetchingLocation] = useState(false);
+  const [isCreatingShowroom, setIsCreatingShowroom] = useState(false);
+  const [isCreatingVehicle, setIsCreatingVehicle] = useState(false);
+  const [isAssigningVehicle, setIsAssigningVehicle] = useState(false);
+  const [isCheckingNextStep, setIsCheckingNextStep] = useState(false);
+  const [logoImage, setLogoImage] = useState<PickedImage | null>(null);
+  const [bannerImage, setBannerImage] = useState<PickedImage | null>(null);
   const [vehicleNumber, setVehicleNumber] = useState('');
+  const [vehicleForm, setVehicleForm] = useState<VehicleForm>(() => createDefaultVehicleForm());
+  const [pendingVehicleId, setPendingVehicleId] = useState<number | null>(null);
+  const [showroomOptions, setShowroomOptions] = useState<ShowroomRole[]>([]);
+  const hasShowroomSelection = Boolean(pendingVehicleId && showroomOptions.length > 1);
+  const isSubmitting = isCreatingShowroom || isCreatingVehicle || isAssigningVehicle || isCheckingNextStep;
+  const readonlyPhoneNumber = formatProfilePhone(countryCode, phoneNumber);
   const activeTab = showroomComplete && step === 'welcome' ? 'Welcome' : tabForStep(step);
 
   const canContinue = useMemo(() => {
@@ -49,13 +149,303 @@ export function WelcomeSetupScreen() {
     }
 
     if (step === 'vehicle') {
-      return vehicleNumber.trim().length > 2;
+      return isVehicleFormComplete(vehicleForm);
     }
 
     return true;
-  }, [showroomName, step, vehicleNumber]);
+  }, [showroomName, step, vehicleForm]);
 
-  const handlePrimaryAction = () => {
+  useEffect(() => {
+    if (step !== 'done') {
+      return undefined;
+    }
+
+    const timer = setTimeout(() => {
+      setCanEnterApp(true);
+      completeProfile(fullName);
+      router.replace('/(app)');
+    }, DASHBOARD_DELAY_MS);
+
+    return () => clearTimeout(timer);
+  }, [completeProfile, fullName, router, setCanEnterApp, step]);
+
+  const handlePickImage = async (target: 'logo' | 'banner') => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (!permission.granted) {
+      Alert.alert(
+        'Photo access needed',
+        'Please allow photo access to select a showroom image.'
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: target === 'banner' ? [16, 6] : [1, 1],
+      quality: 0.85,
+    });
+
+    if (result.canceled || !result.assets[0]) {
+      return;
+    }
+
+    const asset = result.assets[0];
+    const image = {
+      uri: asset.uri,
+      name: asset.fileName,
+      type: asset.mimeType,
+    };
+
+    if (target === 'banner') {
+      setBannerImage(image);
+      return;
+    }
+
+    setLogoImage(image);
+  };
+
+  const handleUseCurrentLocation = async () => {
+    if (isFetchingLocation) {
+      return;
+    }
+
+    setIsFetchingLocation(true);
+
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+
+      if (!permission.granted) {
+        Alert.alert(
+          'Location access needed',
+          'Please allow location access to auto-fill showroom address details.'
+        );
+        return;
+      }
+
+      const position = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+
+      setLatitude(lat.toFixed(6));
+      setLongitude(lng.toFixed(6));
+      setLocationPinned(true);
+
+      const [place] = await Location.reverseGeocodeAsync({
+        latitude: lat,
+        longitude: lng,
+      });
+
+      if (place) {
+        const streetAddress = [place.name, place.street, place.district]
+          .filter(Boolean)
+          .join(', ');
+
+        setAddress(streetAddress);
+        setCity(place.city ?? place.subregion ?? '');
+        setShowroomState(place.region ?? '');
+        setPincode(place.postalCode ?? '');
+      }
+    } catch (error) {
+      Alert.alert(
+        'Location unavailable',
+        error instanceof Error ? error.message : 'Unable to fetch your current location.'
+      );
+    } finally {
+      setIsFetchingLocation(false);
+    }
+  };
+
+  const updateVehicleField = (field: keyof VehicleForm, value: string) => {
+    setVehicleForm((current) => ({
+      ...current,
+      [field]: formatVehicleFieldValue(field, value),
+    }));
+  };
+
+  const fetchProfileForNextStep = async () => {
+    const response = await getProfile();
+    const profile = (response as unknown as ProfileResponse).data;
+
+    if (!profile) {
+      throw new Error('Profile data missing from server response.');
+    }
+
+    if (profile.name) {
+      setFullName(profile.name);
+    }
+
+    setProfileContact({
+      countryCode: profile.country_code ?? undefined,
+      phoneNumber: profile.phone_number ?? undefined,
+    });
+
+    return profile;
+  };
+
+  const moveToNextSetupStep = (profile: ProfileData) => {
+    if (profile.required_name) {
+      setCanEnterApp(false);
+      router.replace('/(setup)/profile');
+      return;
+    }
+
+    if (!profile.has_showrooms) {
+      setCanEnterApp(false);
+      setShowroomComplete(false);
+      setVehicleComplete(false);
+      setStep('showroom');
+      return;
+    }
+
+    setShowroomComplete(true);
+
+    if (!profile.has_vehicles) {
+      setCanEnterApp(false);
+      setVehicleComplete(false);
+      setStep('vehicle');
+      return;
+    }
+
+    setCanEnterApp(false);
+    setVehicleComplete(true);
+    setStep('done');
+  };
+
+  const completeVehicleAssignment = async (vehicleId: number, showroom: ShowroomRole) => {
+    setIsAssigningVehicle(true);
+
+    try {
+      const response = await assignShowroom({
+        vehicleId,
+        showroomId: showroom.showroom_id,
+      });
+      const responseBody = getApiResponseBody(response);
+
+      console.log('Assign vehicle showroom response', responseBody);
+
+      setPendingVehicleId(null);
+      setShowroomOptions([]);
+      setVehicleComplete(true);
+      setCanEnterApp(false);
+      setStep('done');
+    } catch (error) {
+      console.log('Assign vehicle showroom error', error);
+      showApiAlertInProduction(
+        'Vehicle assignment failed',
+        error,
+        'Unable to assign vehicle to showroom.'
+      );
+    } finally {
+      setIsAssigningVehicle(false);
+    }
+  };
+
+  const resolveShowroomAssignment = async (vehicleId: number, profile: ProfileData) => {
+    const showrooms = getAssignableShowrooms(profile);
+
+    if (showrooms.length === 0) {
+      throw new Error('No showroom found to assign this vehicle.');
+    }
+
+    if (showrooms.length === 1) {
+      await completeVehicleAssignment(vehicleId, showrooms[0]);
+      return;
+    }
+
+    setPendingVehicleId(vehicleId);
+    setShowroomOptions(showrooms);
+  };
+
+  const handleCreateShowroom = async () => {
+    if (isCreatingShowroom) {
+      return;
+    }
+
+    const nextShowroomName = showroomName.trim();
+
+    if (nextShowroomName.length <= 1) {
+      Alert.alert('Showroom name needed', 'Please enter your showroom name.');
+      return;
+    }
+
+    setIsCreatingShowroom(true);
+
+    try {
+      const response = await createShowroom({
+        name: nextShowroomName,
+        geolocation: {
+          address,
+          city,
+          state: showroomState,
+          pincode,
+          lat: latitude,
+          lng: longitude,
+        },
+        logo: logoImage,
+        banner: bannerImage,
+      });
+      const responseBody = getApiResponseBody(response);
+
+      console.log('Create showroom response', responseBody);
+
+      setShowroomComplete(true);
+      setIsCheckingNextStep(true);
+      await delay(PROFILE_RECHECK_DELAY_MS);
+      const profile = await fetchProfileForNextStep();
+      moveToNextSetupStep(profile);
+    } catch (error) {
+      showApiAlertInProduction('Showroom create failed', error);
+    } finally {
+      setIsCreatingShowroom(false);
+      setIsCheckingNextStep(false);
+    }
+  };
+
+  const handleCreateVehicle = async () => {
+    if (isCreatingVehicle) {
+      return;
+    }
+
+    if (!isVehicleFormComplete(vehicleForm)) {
+      Alert.alert('Vehicle details needed', 'Please fill all required vehicle details.');
+      return;
+    }
+
+    setIsCreatingVehicle(true);
+
+    try {
+      console.log('Create vehicle form', vehicleForm);
+
+      const response = await createVehicle(vehicleForm);
+      const responseBody = getApiResponseBody(response);
+
+      console.log('Create vehicle response', responseBody);
+
+      const vehicleId = getCreatedVehicleId(responseBody);
+
+      if (!vehicleId) {
+        throw new Error('Vehicle created, but vehicle id is missing from server response.');
+      }
+
+      setVehicleNumber(vehicleForm.registrationNumber);
+      setIsCheckingNextStep(true);
+      await delay(PROFILE_RECHECK_DELAY_MS);
+      const profile = await fetchProfileForNextStep();
+      await resolveShowroomAssignment(vehicleId, profile);
+    } catch (error) {
+      console.log('Create vehicle error', error);
+      showApiAlertInProduction('Vehicle create failed', error, 'Unable to create vehicle.');
+    } finally {
+      setIsCreatingVehicle(false);
+      setIsCheckingNextStep(false);
+    }
+  };
+
+  const handlePrimaryAction = async () => {
     if (step === 'welcome' && !showroomComplete) {
       setStep('showroom');
       return;
@@ -67,18 +457,17 @@ export function WelcomeSetupScreen() {
     }
 
     if (step === 'showroom') {
-      setShowroomComplete(true);
-      setStep('welcome');
+      await handleCreateShowroom();
       return;
     }
 
     if (step === 'vehicle') {
-      setVehicleComplete(true);
-      setStep('done');
+      await handleCreateVehicle();
       return;
     }
 
     completeProfile(fullName);
+    setCanEnterApp(true);
     router.replace('/(app)');
   };
 
@@ -88,7 +477,8 @@ export function WelcomeSetupScreen() {
       edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}>
         <View style={styles.content}>
           <StepTabs activeTab={activeTab} showroomComplete={showroomComplete} vehicleComplete={vehicleComplete} />
 
@@ -109,16 +499,32 @@ export function WelcomeSetupScreen() {
             {step === 'showroom' ? (
               <ShowroomPart
                 showroomName={showroomName}
-                contactNumber={contactNumber}
+                address={address}
+                city={city}
+                showroomState={showroomState}
+                pincode={pincode}
+                latitude={latitude}
+                longitude={longitude}
+                phoneNumber={readonlyPhoneNumber}
+                logoImageUri={logoImage?.uri}
+                bannerImageUri={bannerImage?.uri}
                 locationPinned={locationPinned}
+                isFetchingLocation={isFetchingLocation}
                 onShowroomNameChange={setShowroomName}
-                onContactNumberChange={setContactNumber}
-                onLocationPress={() => setLocationPinned(true)}
+                onAddressChange={setAddress}
+                onCityChange={setCity}
+                onShowroomStateChange={setShowroomState}
+                onPincodeChange={setPincode}
+                onLatitudeChange={setLatitude}
+                onLongitudeChange={setLongitude}
+                onPickLogo={() => handlePickImage('logo')}
+                onPickBanner={() => handlePickImage('banner')}
+                onLocationPress={handleUseCurrentLocation}
               />
             ) : null}
 
             {step === 'vehicle' ? (
-              <VehiclePart vehicleNumber={vehicleNumber} onVehicleNumberChange={setVehicleNumber} />
+              <VehiclePart form={vehicleForm} onFieldChange={updateVehicleField} />
             ) : null}
 
             {step === 'done' ? (
@@ -128,13 +534,35 @@ export function WelcomeSetupScreen() {
 
           <View style={styles.footer}>
             <Button
-              label={buttonLabel(step)}
+              label={buttonLabel(step, {
+                isCheckingNextStep,
+                isCreatingShowroom,
+                isCreatingVehicle,
+                isAssigningVehicle,
+              })}
               onPress={handlePrimaryAction}
-              disabled={!canContinue}
+              disabled={!canContinue || isSubmitting || hasShowroomSelection}
+              loading={(step === 'showroom' || step === 'vehicle') && isSubmitting}
             />
           </View>
         </View>
       </KeyboardAvoidingView>
+      <ShowroomPickerModal
+        visible={hasShowroomSelection}
+        showrooms={showroomOptions}
+        isAssigning={isAssigningVehicle}
+        onClose={() => {
+          if (!isAssigningVehicle) {
+            setPendingVehicleId(null);
+            setShowroomOptions([]);
+          }
+        }}
+        onSelect={(showroom) => {
+          if (pendingVehicleId) {
+            completeVehicleAssignment(pendingVehicleId, showroom);
+          }
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -155,7 +583,167 @@ function tabForStep(step: SetupStep) {
   return 'Welcome';
 }
 
-function buttonLabel(step: SetupStep) {
+function formatProfilePhone(countryCode: string, phoneNumber: string) {
+  if (!phoneNumber) {
+    return '';
+  }
+
+  const digits = phoneNumber.replace(/\D/g, '');
+  const code = countryCode.replace(/\D/g, '');
+  const localNumber = code && digits.startsWith(code) ? digits.slice(code.length) : digits;
+
+  return code ? `+${code} - ${localNumber}` : localNumber;
+}
+
+function getApiResponseBody(response: unknown) {
+  if (response && typeof response === 'object' && 'data' in response) {
+    return (response as { data?: unknown }).data;
+  }
+
+  return response;
+}
+
+function getCreatedVehicleId(response: unknown) {
+  if (!response || typeof response !== 'object') {
+    return null;
+  }
+
+  const vehicleId = (response as { id?: unknown }).id;
+  return typeof vehicleId === 'number' ? vehicleId : null;
+}
+
+function getAssignableShowrooms(profile: ProfileData) {
+  return (profile.showroom_roles ?? []).filter((showroom) => {
+    return typeof showroom.showroom_id === 'number';
+  });
+}
+
+function isVehicleFormComplete(form: VehicleForm) {
+  return (
+    form.vehicleType.trim().length > 0 &&
+    form.manufacturer.trim().length > 0 &&
+    form.model.trim().length > 0 &&
+    form.variant.trim().length > 0 &&
+    form.color.trim().length > 0 &&
+    Number(form.yearOfManufacture) > 1900 &&
+    form.rtoCode.trim().length > 1 &&
+    form.registrationNumber.replace(/\s/g, '').length > 3 &&
+    form.registrationState.trim().length > 0 &&
+    Number(form.usageKm) >= 0 &&
+    form.fuelType.trim().length > 0 &&
+    form.transmissionType.trim().length > 0
+  );
+}
+
+function formatVehicleFieldValue(field: keyof VehicleForm, value: string) {
+  if (field === 'yearOfManufacture') {
+    return value.replace(/\D/g, '').slice(0, 4);
+  }
+
+  if (field === 'usageKm') {
+    return value.replace(/\D/g, '').slice(0, 7);
+  }
+
+  if (field === 'rtoCode' || field === 'registrationNumber') {
+    return value.toUpperCase();
+  }
+
+  if (field === 'vehicleType' || field === 'fuelType' || field === 'transmissionType') {
+    return value.toLowerCase();
+  }
+
+  return value;
+}
+
+function getApiErrorMessage(error: unknown, fallback = 'Unable to create showroom.') {
+  if (error && typeof error === 'object' && 'body' in error) {
+    const body = (error as { body?: unknown }).body;
+    return toAlertMessage(body, fallback);
+  }
+
+  if (error && typeof error === 'object' && 'response' in error) {
+    const response = (error as { response?: { data?: unknown } }).response;
+    return toAlertMessage(response?.data, fallback);
+  }
+
+  return toAlertMessage(error, fallback);
+}
+
+function showApiAlertInProduction(title: string, error: unknown, fallback?: string) {
+  if (__DEV__) {
+    return;
+  }
+
+  Alert.alert(title, getApiErrorMessage(error, fallback));
+}
+
+function toAlertMessage(value: unknown, fallback: string): string {
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  if (value instanceof Error) {
+    return value.message;
+  }
+
+  if (value === null || value === undefined) {
+    return fallback;
+  }
+
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+
+  if (typeof value === 'object') {
+    const payload = value as { message?: unknown; error?: unknown };
+    const nestedMessage = toAlertMessage(payload.message ?? payload.error, '');
+
+    if (nestedMessage) {
+      return nestedMessage;
+    }
+
+    try {
+      const text = JSON.stringify(value, null, 2);
+      return text.length > 900 ? `${text.slice(0, 900)}...` : text;
+    } catch {
+      return fallback;
+    }
+  }
+
+  return fallback;
+}
+
+function delay(ms: number) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+function buttonLabel(
+  step: SetupStep,
+  state: {
+    isCheckingNextStep?: boolean;
+    isCreatingShowroom?: boolean;
+    isCreatingVehicle?: boolean;
+    isAssigningVehicle?: boolean;
+  } = {}
+) {
+  if (state.isCheckingNextStep) {
+    return 'Checking next step';
+  }
+
+  if (state.isCreatingShowroom) {
+    return 'Saving showroom';
+  }
+
+  if (state.isCreatingVehicle) {
+    return 'Saving vehicle';
+  }
+
+  if (state.isAssigningVehicle) {
+    return 'Assigning showroom';
+  }
+
   if (step === 'welcome') {
     return 'Next';
   }
@@ -233,8 +821,6 @@ function WelcomePart({
 
   return (
     <View style={styles.welcomePart}>
-      <BrandUpload />
-
       <View style={styles.header}>
         <Text style={[Typography.hero2, styles.welcomeTitle, { color: colors['on-background'] }]}>
           Welcome!
@@ -273,12 +859,23 @@ function WelcomePart({
   );
 }
 
-function BrandUpload() {
+function BrandUpload({
+  logoImageUri,
+  bannerImageUri,
+  onPickLogo,
+  onPickBanner,
+}: {
+  logoImageUri?: string;
+  bannerImageUri?: string;
+  onPickLogo: () => void;
+  onPickBanner: () => void;
+}) {
   const { colors } = useTheme();
 
   return (
     <View style={styles.brandWrap}>
-      <View
+      <Pressable
+        onPress={onPickBanner}
         style={[
           styles.bannerUpload,
           {
@@ -286,17 +883,23 @@ function BrandUpload() {
             borderColor: colors.outline,
           },
         ]}>
-        <Ionicons name="image-outline" size={34} color={colors.primary} />
-        <Text style={[Typography.caption, styles.bannerLabel, { color: colors.primary }]}>
-          Add a banner image
-        </Text>
+        {bannerImageUri ? (
+          <Image source={{ uri: bannerImageUri }} style={styles.bannerImage} />
+        ) : (
+          <>
+            <Ionicons name="image-outline" size={34} color={colors.primary} />
+            <Text style={[Typography.caption, styles.bannerLabel, { color: colors.primary }]}>
+              Add a banner image
+            </Text>
+          </>
+        )}
         <View style={[styles.editBadge, { backgroundColor: colors.background }]}>
           <Ionicons name="pencil" size={17} color={colors.primary} />
         </View>
-      </View>
+      </Pressable>
 
       <View style={styles.logoRow}>
-        <View style={styles.logoCluster}>
+        <Pressable onPress={onPickLogo} style={styles.logoCluster}>
           <View
             style={[
               styles.logoCircle,
@@ -305,12 +908,16 @@ function BrandUpload() {
                 borderColor: colors.background,
               },
             ]}>
-            <Ionicons name="storefront-outline" size={32} color={colors.primary} />
+            {logoImageUri ? (
+              <Image source={{ uri: logoImageUri }} style={styles.logoImage} />
+            ) : (
+              <Ionicons name="storefront-outline" size={32} color={colors.primary} />
+            )}
           </View>
           <View style={[styles.plusBadge, { backgroundColor: colors.primary }]}>
             <Ionicons name="add" size={18} color={colors['on-primary']} />
           </View>
-        </View>
+        </Pressable>
         <Text style={[Typography.caption, styles.logoLabel, { color: colors.primary }]}>
           Add your logo & banner
         </Text>
@@ -387,17 +994,49 @@ function SetupTaskCard({
 
 function ShowroomPart({
   showroomName,
-  contactNumber,
+  address,
+  city,
+  showroomState,
+  pincode,
+  latitude,
+  longitude,
+  phoneNumber,
+  logoImageUri,
+  bannerImageUri,
   locationPinned,
+  isFetchingLocation,
   onShowroomNameChange,
-  onContactNumberChange,
+  onAddressChange,
+  onCityChange,
+  onShowroomStateChange,
+  onPincodeChange,
+  onLatitudeChange,
+  onLongitudeChange,
+  onPickLogo,
+  onPickBanner,
   onLocationPress,
 }: {
   showroomName: string;
-  contactNumber: string;
+  address: string;
+  city: string;
+  showroomState: string;
+  pincode: string;
+  latitude: string;
+  longitude: string;
+  phoneNumber: string;
+  logoImageUri?: string;
+  bannerImageUri?: string;
   locationPinned: boolean;
+  isFetchingLocation: boolean;
   onShowroomNameChange: (value: string) => void;
-  onContactNumberChange: (value: string) => void;
+  onAddressChange: (value: string) => void;
+  onCityChange: (value: string) => void;
+  onShowroomStateChange: (value: string) => void;
+  onPincodeChange: (value: string) => void;
+  onLatitudeChange: (value: string) => void;
+  onLongitudeChange: (value: string) => void;
+  onPickLogo: () => void;
+  onPickBanner: () => void;
   onLocationPress: () => void;
 }) {
   const { colors } = useTheme();
@@ -415,53 +1054,193 @@ function ShowroomPart({
           Add your{'\n'}showroom
         </Text>
         <Text style={[Typography.body, styles.formSubtitle, { color: colors['on-surface'] }]}>
-          Tell us about your dealership{'\n'}location
+          Add showroom details now. Logo, banner, and location fields are optional.
         </Text>
       </View>
 
-      <View style={styles.formFields}>
-        <FieldLabel label="Showroom name" />
-        <IconTextInput
-          icon="storefront-outline"
-          value={showroomName}
-          onChangeText={onShowroomNameChange}
-          placeholder="AutoDeals Guwahati"
-        />
+      <BrandUpload
+        logoImageUri={logoImageUri}
+        bannerImageUri={bannerImageUri}
+        onPickLogo={onPickLogo}
+        onPickBanner={onPickBanner}
+      />
 
-        <FieldLabel label="Location" />
+      <View style={styles.formFields}>
+        <View style={styles.fieldGroup}>
+          <FieldLabel label="Showroom name" />
+          <FormTextInput
+            value={showroomName}
+            onChangeText={onShowroomNameChange}
+            placeholder="Showroom name"
+          />
+        </View>
+
+        <View style={styles.fieldGroup}>
+          <FieldLabel label="Phone number" />
+          <ReadonlyField value={phoneNumber || 'Phone number'} />
+        </View>
+
+        <View style={styles.fieldGroup}>
+          <FieldLabel label="Address" />
+          <FormTextInput
+            value={address}
+            onChangeText={onAddressChange}
+            placeholder="Street address"
+          />
+        </View>
+
+        <View style={styles.fieldRow}>
+          <View style={styles.fieldColumn}>
+            <FieldLabel label="City" />
+            <FormTextInput value={city} onChangeText={onCityChange} placeholder="City" />
+          </View>
+          <View style={styles.fieldColumn}>
+            <FieldLabel label="State" />
+            <FormTextInput value={showroomState} onChangeText={onShowroomStateChange} placeholder="State" />
+          </View>
+        </View>
+
+        <View style={styles.fieldRow}>
+          <View style={styles.fieldColumn}>
+            <FieldLabel label="Pincode" />
+            <FormTextInput
+              value={pincode}
+              onChangeText={(value) => onPincodeChange(value.replace(/\D/g, '').slice(0, 6))}
+              placeholder="Pincode"
+              keyboardType="number-pad"
+              maxLength={6}
+            />
+          </View>
+          <View style={styles.fieldColumn}>
+            <FieldLabel label="Latitude" />
+            <FormTextInput
+              value={latitude}
+              onChangeText={onLatitudeChange}
+              placeholder="26.1445"
+              keyboardType="decimal-pad"
+            />
+          </View>
+        </View>
+
+        <View style={styles.fieldGroup}>
+          <FieldLabel label="Longitude" />
+          <FormTextInput
+            value={longitude}
+            onChangeText={onLongitudeChange}
+            placeholder="91.7362"
+            keyboardType="decimal-pad"
+          />
+        </View>
+
         <Pressable
           onPress={onLocationPress}
+          disabled={isFetchingLocation}
           style={[
-            styles.locationCard,
+            styles.locationMiniCard,
             {
               backgroundColor: colors['surface-container'],
+              opacity: isFetchingLocation ? 0.75 : 1,
             },
           ]}>
-          <Ionicons name="location" size={34} color={colors.primary} />
+          <Ionicons
+            name={isFetchingLocation ? 'sync-outline' : 'location'}
+            size={22}
+            color={colors.primary}
+          />
           <Text style={[Typography.caption, styles.locationText, { color: colors.primary }]}>
-            {locationPinned ? 'Location pinned' : 'Tap to pin location'}
+            {isFetchingLocation
+              ? 'Fetching location...'
+              : locationPinned
+                ? 'Location pinned'
+                : 'Use current location'}
           </Text>
         </Pressable>
-
-        <FieldLabel label="Contact number" />
-        <IconTextInput
-          icon="call-outline"
-          value={contactNumber}
-          onChangeText={onContactNumberChange}
-          placeholder="+91 XXXXX XXXXX"
-          keyboardType="phone-pad"
-        />
       </View>
     </View>
   );
 }
 
-function VehiclePart({
-  vehicleNumber,
-  onVehicleNumberChange,
+function ShowroomPickerModal({
+  visible,
+  showrooms,
+  isAssigning,
+  onClose,
+  onSelect,
 }: {
-  vehicleNumber: string;
-  onVehicleNumberChange: (value: string) => void;
+  visible: boolean;
+  showrooms: ShowroomRole[];
+  isAssigning: boolean;
+  onClose: () => void;
+  onSelect: (showroom: ShowroomRole) => void;
+}) {
+  const { colors } = useTheme();
+
+  return (
+    <Modal
+      animationType="fade"
+      transparent
+      visible={visible}
+      statusBarTranslucent
+      onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <Pressable style={styles.modalBackdrop} onPress={onClose} disabled={isAssigning} />
+        <View
+          style={[
+            styles.showroomModalCard,
+            {
+              backgroundColor: colors['surface-container-lowest'],
+              borderColor: colors['outline-variant'],
+            },
+          ]}>
+          <View style={[styles.showroomModalIcon, { backgroundColor: colors['surface-container'] }]}>
+            <Ionicons name="storefront-outline" size={30} color={colors.primary} />
+          </View>
+
+          <Text style={[Typography.title, styles.showroomModalTitle, { color: colors['on-background'] }]}>
+            Choose showroom
+          </Text>
+          <Text style={[Typography.body, styles.showroomModalSubtitle, { color: colors['on-surface'] }]}>
+            Select where this vehicle should be listed.
+          </Text>
+
+          <View style={styles.showroomOptionList}>
+            {showrooms.map((showroom) => (
+              <Pressable
+                key={showroom.showroom_id}
+                onPress={() => onSelect(showroom)}
+                disabled={isAssigning}
+                style={({ pressed }) => [
+                  styles.showroomOption,
+                  {
+                    backgroundColor: colors['surface-container-low'],
+                    borderColor: colors['outline-variant'],
+                    opacity: isAssigning ? 0.6 : pressed ? 0.86 : 1,
+                  },
+                ]}>
+                <View style={styles.showroomOptionText}>
+                  <Text style={[Typography.screenTitle, styles.showroomOptionName, { color: colors['on-background'] }]}>
+                    {showroom.showroom_name || `Showroom ${showroom.showroom_id}`}
+                  </Text>
+                  <Text style={[Typography.caption, styles.showroomOptionMeta, { color: colors['on-surface-variant'] }]}>
+                    {[showroom.external_showroom_id, showroom.role].filter(Boolean).join(' • ')}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={colors.primary} />
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function VehiclePart({
+  form,
+  onFieldChange,
+}: {
+  form: VehicleForm;
+  onFieldChange: (field: keyof VehicleForm, value: string) => void;
 }) {
   const { colors } = useTheme();
 
@@ -478,19 +1257,132 @@ function VehiclePart({
           Add your first{'\n'}vehicle
         </Text>
         <Text style={[Typography.body, styles.formSubtitle, { color: colors['on-surface'] }]}>
-          Register a vehicle with its number plate.
+          Add basic inventory details. We need these fields for the create vehicle API.
         </Text>
       </View>
 
       <View style={styles.formFields}>
-        <FieldLabel label="Vehicle number" />
-        <IconTextInput
-          icon="car-sport-outline"
-          value={vehicleNumber}
-          onChangeText={onVehicleNumberChange}
-          placeholder="AS 01 AB 1234"
-          autoCapitalize="characters"
-        />
+        <View style={styles.fieldRow}>
+          <View style={styles.fieldColumn}>
+            <FieldLabel label="Vehicle type" />
+            <FormTextInput
+              value={form.vehicleType}
+              onChangeText={(value) => onFieldChange('vehicleType', value)}
+              placeholder="car"
+              autoCapitalize="none"
+            />
+          </View>
+          <View style={styles.fieldColumn}>
+            <FieldLabel label="Fuel type" />
+            <FormTextInput
+              value={form.fuelType}
+              onChangeText={(value) => onFieldChange('fuelType', value)}
+              placeholder="petrol"
+              autoCapitalize="none"
+            />
+          </View>
+        </View>
+
+        <View style={styles.fieldRow}>
+          <View style={styles.fieldColumn}>
+            <FieldLabel label="Manufacturer" />
+            <FormTextInput
+              value={form.manufacturer}
+              onChangeText={(value) => onFieldChange('manufacturer', value)}
+              placeholder="Toyota"
+            />
+          </View>
+          <View style={styles.fieldColumn}>
+            <FieldLabel label="Model" />
+            <FormTextInput
+              value={form.model}
+              onChangeText={(value) => onFieldChange('model', value)}
+              placeholder="Camry"
+            />
+          </View>
+        </View>
+
+        <View style={styles.fieldRow}>
+          <View style={styles.fieldColumn}>
+            <FieldLabel label="Variant" />
+            <FormTextInput
+              value={form.variant}
+              onChangeText={(value) => onFieldChange('variant', value)}
+              placeholder="LE"
+            />
+          </View>
+          <View style={styles.fieldColumn}>
+            <FieldLabel label="Color" />
+            <FormTextInput
+              value={form.color}
+              onChangeText={(value) => onFieldChange('color', value)}
+              placeholder="Black"
+            />
+          </View>
+        </View>
+
+        <View style={styles.fieldRow}>
+          <View style={styles.fieldColumn}>
+            <FieldLabel label="Year" />
+            <FormTextInput
+              value={form.yearOfManufacture}
+              onChangeText={(value) => onFieldChange('yearOfManufacture', value)}
+              placeholder="2020"
+              keyboardType="number-pad"
+              maxLength={4}
+            />
+          </View>
+          <View style={styles.fieldColumn}>
+            <FieldLabel label="Usage KM" />
+            <FormTextInput
+              value={form.usageKm}
+              onChangeText={(value) => onFieldChange('usageKm', value)}
+              placeholder="50000"
+              keyboardType="number-pad"
+            />
+          </View>
+        </View>
+
+        <View style={styles.fieldRow}>
+          <View style={styles.fieldColumn}>
+            <FieldLabel label="RTO code" />
+            <FormTextInput
+              value={form.rtoCode}
+              onChangeText={(value) => onFieldChange('rtoCode', value)}
+              placeholder="KA-01"
+              autoCapitalize="characters"
+            />
+          </View>
+          <View style={styles.fieldColumn}>
+            <FieldLabel label="Registration state" />
+            <FormTextInput
+              value={form.registrationState}
+              onChangeText={(value) => onFieldChange('registrationState', value)}
+              placeholder="Karnataka"
+            />
+          </View>
+        </View>
+
+        <View style={styles.fieldGroup}>
+          <FieldLabel label="Registration number" />
+          <IconTextInput
+            icon="car-sport-outline"
+            value={form.registrationNumber}
+            onChangeText={(value) => onFieldChange('registrationNumber', value)}
+            placeholder="KA01AB1234"
+            autoCapitalize="characters"
+          />
+        </View>
+
+        <View style={styles.fieldGroup}>
+          <FieldLabel label="Transmission type" />
+          <FormTextInput
+            value={form.transmissionType}
+            onChangeText={(value) => onFieldChange('transmissionType', value)}
+            placeholder="manual"
+            autoCapitalize="none"
+          />
+        </View>
       </View>
     </View>
   );
@@ -550,6 +1442,50 @@ function IconTextInput({
   );
 }
 
+function FormTextInput({
+  style,
+  ...inputProps
+}: React.ComponentProps<typeof TextInput>) {
+  const { colors } = useTheme();
+
+  return (
+    <TextInput
+      {...inputProps}
+      placeholderTextColor={colors['on-surface-variant']}
+      style={[
+        Typography.body,
+        styles.formInput,
+        {
+          color: colors['on-surface'],
+          borderColor: colors['outline-variant'],
+          backgroundColor: colors['surface-container-low'],
+        },
+        style,
+      ]}
+    />
+  );
+}
+
+function ReadonlyField({ value }: { value: string }) {
+  const { colors } = useTheme();
+
+  return (
+    <View
+      style={[
+        styles.readonlyField,
+        {
+          borderColor: colors['outline-variant'],
+          backgroundColor: colors['surface-container-low'],
+        },
+      ]}>
+      <Ionicons name="call-outline" size={20} color={colors.primary} />
+      <Text style={[Typography.body, styles.readonlyText, { color: colors['on-surface'] }]}>
+        {value}
+      </Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -569,6 +1505,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingTop: 21,
+    paddingBottom: 28,
   },
   tabsWrap: {
     paddingTop: 6,
@@ -609,6 +1546,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 13,
+    overflow: 'hidden',
+  },
+  bannerImage: {
+    width: '100%',
+    height: '100%',
   },
   bannerLabel: {
     fontFamily: Typography.caption.fontFamily,
@@ -643,6 +1585,11 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  logoImage: {
+    width: '100%',
+    height: '100%',
   },
   plusBadge: {
     position: 'absolute',
@@ -761,13 +1708,48 @@ const styles = StyleSheet.create({
     lineHeight: 23,
   },
   formFields: {
-    gap: 10,
+    gap: 14,
+  },
+  fieldGroup: {
+    gap: 8,
+  },
+  fieldRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  fieldColumn: {
+    flex: 1,
+    gap: 8,
   },
   fieldLabel: {
     fontSize: 14,
     lineHeight: 18,
     fontFamily: Typography.screenTitle.fontFamily,
-    marginTop: 5,
+  },
+  formInput: {
+    minHeight: 56,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 0,
+    fontSize: 14,
+    lineHeight: 20,
+    fontFamily: Typography.body.fontFamily,
+  },
+  readonlyField: {
+    minHeight: 56,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  readonlyText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
+    fontFamily: Typography.screenTitle.fontFamily,
   },
   inputWrap: {
     minHeight: 74,
@@ -794,11 +1776,80 @@ const styles = StyleSheet.create({
     gap: 22,
     marginBottom: 10,
   },
+  locationMiniCard: {
+    minHeight: 58,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
   locationText: {
     fontSize: 12,
     lineHeight: 16,
     fontFamily: Typography.caption.fontFamily,
     fontWeight: '500',
+  },
+  modalOverlay: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: Grid.columns.margin,
+  },
+  modalBackdrop: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: 'rgba(3, 20, 39, 0.62)',
+  },
+  showroomModalCard: {
+    width: '100%',
+    borderRadius: 28,
+    borderWidth: 1,
+    padding: 22,
+    alignItems: 'center',
+    gap: 12,
+  },
+  showroomModalIcon: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  showroomModalTitle: {
+    textAlign: 'center',
+    lineHeight: 27,
+  },
+  showroomModalSubtitle: {
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  showroomOptionList: {
+    width: '100%',
+    gap: 10,
+    marginTop: 8,
+  },
+  showroomOption: {
+    minHeight: 68,
+    borderRadius: 18,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  showroomOptionText: {
+    flex: 1,
+    gap: 4,
+  },
+  showroomOptionName: {
+    lineHeight: 20,
+  },
+  showroomOptionMeta: {
+    lineHeight: 15,
   },
   donePart: {
     flex: 1,

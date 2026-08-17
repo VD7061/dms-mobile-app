@@ -27,6 +27,20 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-router',
     'expo-secure-store',
     [
+      'expo-image-picker',
+      {
+        photosPermission:
+          'Dealer Management needs photo library access so you can select showroom logo and banner images.',
+      },
+    ],
+    [
+      'expo-location',
+      {
+        locationWhenInUsePermission:
+          'Dealer Management needs your location to auto-fill showroom address details.',
+      },
+    ],
+    [
       'expo-splash-screen',
       {
         backgroundColor: '#f8f9ff',
@@ -63,6 +77,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
 
   extra: {
     appEnv: process.env.APP_ENV ?? 'development',
+    apiErrorAlertMode: process.env.EXPO_PUBLIC_API_ERROR_ALERT_MODE,
     apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL ?? '',
     apiPlatform: process.env.EXPO_PUBLIC_API_PLATFORM ?? 'web',
   },

@@ -75,12 +75,13 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     width: '100%',
-    gap: 8,
+    gap: 6,
   },
   cell: {
     flex: 1,
-    height: 52,
-    borderRadius: 20,
+    minWidth: 0,
+    height: 48,
+    borderRadius: 18,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
