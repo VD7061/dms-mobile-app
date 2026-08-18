@@ -8,3 +8,4 @@ export { ScreenTopArea } from './ScreenTopArea';
 export { SkeletonBox } from './SkeletonBox';
 export { FilterChips } from './FilterChips';
 export { AppAlertProvider, useAppAlert } from './AppAlertProvider';
+export { ShowroomPickerModal, type ShowroomRole } from './ShowroomPickerModal';

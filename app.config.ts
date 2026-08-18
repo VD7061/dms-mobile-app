@@ -31,6 +31,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       {
         photosPermission:
           'Dealer Management needs photo library access so you can select showroom logo and banner images.',
+        cameraPermission:
+          'Dealer Management needs camera access so you can take showroom logo and banner photos.',
       },
     ],
     [

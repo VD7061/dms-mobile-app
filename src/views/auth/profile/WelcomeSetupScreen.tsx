@@ -3,7 +3,6 @@ import {
   Alert,
   Image,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -17,8 +16,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Button } from '@/components/ui';
-import { Grid, Typography } from '@/constants/theme';
+import { BottomSheet, Button, ShowroomPickerModal, type ShowroomRole } from '@/components/ui';
+import { FontFamily, Grid, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { assignShowroom, createShowroom, createVehicle, getProfile } from '@/services';
 import { useAuthStore } from '@/store';
@@ -29,12 +28,6 @@ type PickedImage = {
   uri: string;
   name?: string | null;
   type?: string | null;
-};
-type ShowroomRole = {
-  showroom_id: number;
-  external_showroom_id?: string | null;
-  showroom_name?: string | null;
-  role?: string | null;
 };
 type ProfileData = {
   name?: string | null;
@@ -134,6 +127,7 @@ export function WelcomeSetupScreen() {
   const [isCheckingNextStep, setIsCheckingNextStep] = useState(false);
   const [logoImage, setLogoImage] = useState<PickedImage | null>(null);
   const [bannerImage, setBannerImage] = useState<PickedImage | null>(null);
+  const [photoPickerTarget, setPhotoPickerTarget] = useState<'logo' | 'banner' | null>(null);
   const [vehicleNumber, setVehicleNumber] = useState('');
   const [vehicleForm, setVehicleForm] = useState<VehicleForm>(() => createDefaultVehicleForm());
   const [pendingVehicleId, setPendingVehicleId] = useState<number | null>(null);
@@ -169,7 +163,46 @@ export function WelcomeSetupScreen() {
     return () => clearTimeout(timer);
   }, [completeProfile, fullName, router, setCanEnterApp, step]);
 
-  const handlePickImage = async (target: 'logo' | 'banner') => {
+  const applyPickedImage = (target: 'logo' | 'banner', asset: ImagePicker.ImagePickerAsset) => {
+    const image = {
+      uri: asset.uri,
+      name: asset.fileName,
+      type: asset.mimeType,
+    };
+
+    if (target === 'banner') {
+      setBannerImage(image);
+      return;
+    }
+
+    setLogoImage(image);
+  };
+
+  const handleTakePhoto = async (target: 'logo' | 'banner') => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+
+    if (!permission.granted) {
+      Alert.alert(
+        'Camera access needed',
+        'Please allow camera access to take a showroom photo.'
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: target === 'banner' ? [16, 6] : [1, 1],
+      quality: 0.85,
+    });
+
+    if (result.canceled || !result.assets[0]) {
+      return;
+    }
+
+    applyPickedImage(target, result.assets[0]);
+  };
+
+  const handleChooseFromLibrary = async (target: 'logo' | 'banner') => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (!permission.granted) {
@@ -191,19 +224,31 @@ export function WelcomeSetupScreen() {
       return;
     }
 
-    const asset = result.assets[0];
-    const image = {
-      uri: asset.uri,
-      name: asset.fileName,
-      type: asset.mimeType,
-    };
+    applyPickedImage(target, result.assets[0]);
+  };
 
-    if (target === 'banner') {
-      setBannerImage(image);
+  const handlePickImage = (target: 'logo' | 'banner') => {
+    setPhotoPickerTarget(target);
+  };
+
+  const handleClosePhotoPicker = () => {
+    setPhotoPickerTarget(null);
+  };
+
+  const handleSelectPhotoSource = (source: 'camera' | 'library') => {
+    if (!photoPickerTarget) {
       return;
     }
 
-    setLogoImage(image);
+    const target = photoPickerTarget;
+    setPhotoPickerTarget(null);
+
+    if (source === 'camera') {
+      handleTakePhoto(target);
+      return;
+    }
+
+    handleChooseFromLibrary(target);
   };
 
   const handleUseCurrentLocation = async () => {
@@ -345,6 +390,8 @@ export function WelcomeSetupScreen() {
   };
 
   const resolveShowroomAssignment = async (vehicleId: number, profile: ProfileData) => {
+    console.log('Profile showroom_roles for assignment', profile.showroom_roles);
+
     const showrooms = getAssignableShowrooms(profile);
 
     if (showrooms.length === 0) {
@@ -483,6 +530,7 @@ export function WelcomeSetupScreen() {
           <StepTabs activeTab={activeTab} showroomComplete={showroomComplete} vehicleComplete={vehicleComplete} />
 
           <ScrollView
+            key={step}
             style={styles.scroll}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
@@ -563,6 +611,11 @@ export function WelcomeSetupScreen() {
           }
         }}
       />
+      <PhotoSourceSheet
+        visible={Boolean(photoPickerTarget)}
+        onClose={handleClosePhotoPicker}
+        onSelectSource={handleSelectPhotoSource}
+      />
     </SafeAreaView>
   );
 }
@@ -613,9 +666,15 @@ function getCreatedVehicleId(response: unknown) {
 }
 
 function getAssignableShowrooms(profile: ProfileData) {
-  return (profile.showroom_roles ?? []).filter((showroom) => {
-    return typeof showroom.showroom_id === 'number';
-  });
+  const byId = new Map<number, ShowroomRole>();
+
+  for (const showroom of profile.showroom_roles ?? []) {
+    if (typeof showroom.showroom_id === 'number' && !byId.has(showroom.showroom_id)) {
+      byId.set(showroom.showroom_id, showroom);
+    }
+  }
+
+  return Array.from(byId.values());
 }
 
 function isVehicleFormComplete(form: VehicleForm) {
@@ -771,7 +830,7 @@ function StepTabs({
 
   return (
     <View style={styles.tabsWrap}>
-      <View style={styles.progressTrack}>
+      <View style={[styles.progressTrack, { backgroundColor: colors['surface-container'] }]}>
         <View
           style={[
             styles.progressFill,
@@ -794,7 +853,7 @@ function StepTabs({
                 styles.tabLabel,
                 {
                   color: active ? colors.primary : colors['on-surface-variant'],
-                  fontFamily: active ? Typography.screenTitle.fontFamily : Typography.micro.fontFamily,
+                  fontFamily: active ? Typography.screenTitle.fontFamily : FontFamily.medium,
                 },
               ]}>
               {tab}
@@ -1043,7 +1102,7 @@ function ShowroomPart({
 
   return (
     <View style={styles.formPart}>
-      <View style={styles.stepBadge}>
+      <View style={[styles.stepBadge, { backgroundColor: colors['surface-container'] }]}>
         <Text style={[Typography.screenTitle, styles.stepBadgeText, { color: colors.primary }]}>
           Step 2 of 3
         </Text>
@@ -1068,7 +1127,8 @@ function ShowroomPart({
       <View style={styles.formFields}>
         <View style={styles.fieldGroup}>
           <FieldLabel label="Showroom name" />
-          <FormTextInput
+          <IconTextInput
+            icon="storefront-outline"
             value={showroomName}
             onChangeText={onShowroomNameChange}
             placeholder="Showroom name"
@@ -1160,78 +1220,52 @@ function ShowroomPart({
   );
 }
 
-function ShowroomPickerModal({
+function PhotoSourceSheet({
   visible,
-  showrooms,
-  isAssigning,
   onClose,
-  onSelect,
+  onSelectSource,
 }: {
   visible: boolean;
-  showrooms: ShowroomRole[];
-  isAssigning: boolean;
   onClose: () => void;
-  onSelect: (showroom: ShowroomRole) => void;
+  onSelectSource: (source: 'camera' | 'library') => void;
 }) {
   const { colors } = useTheme();
 
+  const options: { source: 'camera' | 'library'; icon: IconName; label: string }[] = [
+    { source: 'camera', icon: 'camera-outline', label: 'Take photo' },
+    { source: 'library', icon: 'images-outline', label: 'Choose from library' },
+  ];
+
   return (
-    <Modal
-      animationType="fade"
-      transparent
-      visible={visible}
-      statusBarTranslucent
-      onRequestClose={onClose}>
-      <View style={styles.modalOverlay}>
-        <Pressable style={styles.modalBackdrop} onPress={onClose} disabled={isAssigning} />
-        <View
-          style={[
-            styles.showroomModalCard,
-            {
-              backgroundColor: colors['surface-container-lowest'],
-              borderColor: colors['outline-variant'],
-            },
-          ]}>
-          <View style={[styles.showroomModalIcon, { backgroundColor: colors['surface-container'] }]}>
-            <Ionicons name="storefront-outline" size={30} color={colors.primary} />
-          </View>
+    <BottomSheet visible={visible} onClose={onClose}>
+      <Text style={[Typography.title, styles.photoSheetTitle, { color: colors['on-background'] }]}>
+        Add photo
+      </Text>
 
-          <Text style={[Typography.title, styles.showroomModalTitle, { color: colors['on-background'] }]}>
-            Choose showroom
-          </Text>
-          <Text style={[Typography.body, styles.showroomModalSubtitle, { color: colors['on-surface'] }]}>
-            Select where this vehicle should be listed.
-          </Text>
-
-          <View style={styles.showroomOptionList}>
-            {showrooms.map((showroom) => (
-              <Pressable
-                key={showroom.showroom_id}
-                onPress={() => onSelect(showroom)}
-                disabled={isAssigning}
-                style={({ pressed }) => [
-                  styles.showroomOption,
-                  {
-                    backgroundColor: colors['surface-container-low'],
-                    borderColor: colors['outline-variant'],
-                    opacity: isAssigning ? 0.6 : pressed ? 0.86 : 1,
-                  },
-                ]}>
-                <View style={styles.showroomOptionText}>
-                  <Text style={[Typography.screenTitle, styles.showroomOptionName, { color: colors['on-background'] }]}>
-                    {showroom.showroom_name || `Showroom ${showroom.showroom_id}`}
-                  </Text>
-                  <Text style={[Typography.caption, styles.showroomOptionMeta, { color: colors['on-surface-variant'] }]}>
-                    {[showroom.external_showroom_id, showroom.role].filter(Boolean).join(' • ')}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color={colors.primary} />
-              </Pressable>
-            ))}
-          </View>
-        </View>
+      <View style={styles.photoSheetOptions}>
+        {options.map((option) => (
+          <Pressable
+            key={option.source}
+            onPress={() => onSelectSource(option.source)}
+            style={({ pressed }) => [
+              styles.photoSheetOption,
+              {
+                backgroundColor: colors['surface-container-low'],
+                borderColor: colors['outline-variant'],
+                opacity: pressed ? 0.85 : 1,
+              },
+            ]}>
+            <View style={[styles.photoSheetIcon, { backgroundColor: colors['surface-container'] }]}>
+              <Ionicons name={option.icon} size={22} color={colors.primary} />
+            </View>
+            <Text style={[Typography.body, styles.photoSheetLabel, { color: colors['on-surface'] }]}>
+              {option.label}
+            </Text>
+            <Ionicons name="chevron-forward" size={18} color={colors['on-surface-variant']} />
+          </Pressable>
+        ))}
       </View>
-    </Modal>
+    </BottomSheet>
   );
 }
 
@@ -1246,7 +1280,7 @@ function VehiclePart({
 
   return (
     <View style={styles.formPart}>
-      <View style={styles.stepBadge}>
+      <View style={[styles.stepBadge, { backgroundColor: colors['surface-container'] }]}>
         <Text style={[Typography.screenTitle, styles.stepBadgeText, { color: colors.primary }]}>
           Step 3 of 3
         </Text>
@@ -1354,7 +1388,7 @@ function VehiclePart({
             />
           </View>
           <View style={styles.fieldColumn}>
-            <FieldLabel label="Registration state" />
+            <FieldLabel label="Registration State" />
             <FormTextInput
               value={form.registrationState}
               onChangeText={(value) => onFieldChange('registrationState', value)}
@@ -1457,8 +1491,8 @@ function FormTextInput({
         styles.formInput,
         {
           color: colors['on-surface'],
-          borderColor: colors['outline-variant'],
-          backgroundColor: colors['surface-container-low'],
+          borderColor: colors.outline,
+          backgroundColor: colors.background,
         },
         style,
       ]}
@@ -1474,8 +1508,8 @@ function ReadonlyField({ value }: { value: string }) {
       style={[
         styles.readonlyField,
         {
-          borderColor: colors['outline-variant'],
-          backgroundColor: colors['surface-container-low'],
+          borderColor: colors.outline,
+          backgroundColor: colors.background,
         },
       ]}>
       <Ionicons name="call-outline" size={20} color={colors.primary} />
@@ -1512,9 +1546,8 @@ const styles = StyleSheet.create({
     gap: 13,
   },
   progressTrack: {
-    height: 8,
+    height: 10,
     borderRadius: 20,
-    backgroundColor: '#DCEBFF',
     overflow: 'hidden',
     marginHorizontal: 12,
   },
@@ -1528,8 +1561,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   tabLabel: {
-    fontSize: 11,
-    lineHeight: 14,
+    fontSize: 13,
+    lineHeight: 16,
   },
   welcomePart: {
     gap: 24,
@@ -1669,7 +1702,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 1,
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 14,
     gap: 8,
@@ -1683,12 +1716,11 @@ const styles = StyleSheet.create({
   },
   stepBadge: {
     alignSelf: 'flex-start',
-    borderRadius: 18,
-    backgroundColor: '#DEE7FF',
-    paddingHorizontal: 18,
-    paddingVertical: 8,
+    borderRadius: 20,
+    paddingHorizontal: 15,
+    paddingVertical: 6,
     marginLeft: 10,
-    marginBottom: 24,
+    marginBottom: 20,
   },
   stepBadgeText: {
     fontSize: 15,
@@ -1700,46 +1732,47 @@ const styles = StyleSheet.create({
     marginBottom: 25,
   },
   formTitle: {
-    fontSize: 30,
-    lineHeight: 36,
+    fontSize: 28,
+    lineHeight: 34,
+    fontFamily: FontFamily.medium,
   },
   formSubtitle: {
     fontSize: 15,
     lineHeight: 23,
   },
   formFields: {
-    gap: 14,
+    gap: 20,
   },
   fieldGroup: {
     gap: 8,
   },
   fieldRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 16,
   },
   fieldColumn: {
     flex: 1,
     gap: 8,
   },
   fieldLabel: {
-    fontSize: 14,
-    lineHeight: 18,
-    fontFamily: Typography.screenTitle.fontFamily,
+    fontSize: 15,
+    lineHeight: 19,
+    fontFamily: FontFamily.medium,
   },
   formInput: {
-    minHeight: 56,
-    borderRadius: 14,
-    borderWidth: 1,
+    minHeight: 77,
+    borderRadius: 20,
+    borderWidth: 1.4,
     paddingHorizontal: 16,
     paddingVertical: 0,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 15,
+    lineHeight: 22,
     fontFamily: Typography.body.fontFamily,
   },
   readonlyField: {
-    minHeight: 56,
-    borderRadius: 14,
-    borderWidth: 1,
+    minHeight: 77,
+    borderRadius: 20,
+    borderWidth: 1.4,
     paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -1747,23 +1780,23 @@ const styles = StyleSheet.create({
   },
   readonlyText: {
     flex: 1,
-    fontSize: 14,
-    lineHeight: 20,
-    fontFamily: Typography.screenTitle.fontFamily,
+    fontSize: 15,
+    lineHeight: 22,
+    fontFamily: Typography.body.fontFamily,
   },
   inputWrap: {
-    minHeight: 74,
-    borderRadius: 18,
-    borderWidth: 1.25,
+    minHeight: 77,
+    borderRadius: 20,
+    borderWidth: 1.4,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 18,
-    paddingHorizontal: 22,
+    paddingHorizontal: 20,
     marginBottom: 10,
   },
   input: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 15,
     lineHeight: 22,
     paddingVertical: 0,
     fontFamily: Typography.body.fontFamily,
@@ -1777,79 +1810,43 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   locationMiniCard: {
-    minHeight: 58,
-    borderRadius: 14,
+    minHeight: 77,
+    borderRadius: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
   },
   locationText: {
-    fontSize: 12,
+    fontSize: 13,
     lineHeight: 16,
-    fontFamily: Typography.caption.fontFamily,
-    fontWeight: '500',
+    fontFamily: FontFamily.medium,
   },
-  modalOverlay: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: Grid.columns.margin,
+  photoSheetTitle: {
+    textAlign: 'center',
+    marginBottom: 20,
   },
-  modalBackdrop: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    backgroundColor: 'rgba(3, 20, 39, 0.62)',
-  },
-  showroomModalCard: {
-    width: '100%',
-    borderRadius: 28,
-    borderWidth: 1,
-    padding: 22,
-    alignItems: 'center',
+  photoSheetOptions: {
     gap: 12,
   },
-  showroomModalIcon: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  showroomModalTitle: {
-    textAlign: 'center',
-    lineHeight: 27,
-  },
-  showroomModalSubtitle: {
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  showroomOptionList: {
-    width: '100%',
-    gap: 10,
-    marginTop: 8,
-  },
-  showroomOption: {
+  photoSheetOption: {
     minHeight: 68,
     borderRadius: 18,
     borderWidth: 1,
     paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 14,
   },
-  showroomOptionText: {
+  photoSheetIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoSheetLabel: {
     flex: 1,
-    gap: 4,
-  },
-  showroomOptionName: {
-    lineHeight: 20,
-  },
-  showroomOptionMeta: {
-    lineHeight: 15,
   },
   donePart: {
     flex: 1,

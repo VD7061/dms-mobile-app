@@ -27,6 +27,7 @@ export type VehicleItem = {
   transmission: string;
   insuranceValidTill: string;
   lotLocation: string;
+  photoCount?: number;
   expenses: VehicleExpense[];
   documents: VehicleDocument[];
 };

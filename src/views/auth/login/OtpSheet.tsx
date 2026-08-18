@@ -60,16 +60,16 @@ export function OtpSheet({
   }, [initialOtp, visible]);
 
   useEffect(() => {
-    if (!visible || secondsLeft <= 0) {
+    if (!visible) {
       return;
     }
 
     const timer = setInterval(() => {
-      setSecondsLeft((current) => current - 1);
+      setSecondsLeft((current) => (current > 0 ? current - 1 : 0));
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [visible, secondsLeft]);
+  }, [visible]);
 
   const handleVerify = async () => {
     if (otp.length !== 6 || !requestId || isVerifying) {

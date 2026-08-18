@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { View, Text, StyleSheet, Keyboard, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -30,16 +30,7 @@ export function LoginScreen() {
   const [showOtpSheet, setShowOtpSheet] = useState(false);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const otpSheetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isValidPhoneNumber = phoneNumber.length === 10;
-
-  useEffect(() => {
-    return () => {
-      if (otpSheetTimerRef.current) {
-        clearTimeout(otpSheetTimerRef.current);
-      }
-    };
-  }, []);
 
   const handlePhoneNumberChange = (value: string) => {
     setPhoneNumber(value.replace(/\D/g, '').slice(0, 10));
@@ -65,12 +56,7 @@ export function LoginScreen() {
 
       setRequestId(nextRequestId);
       setInitialOtp(nextOtpCode.replace(/\D/g, '').slice(0, 6));
-      Keyboard.dismiss();
-
-      otpSheetTimerRef.current = setTimeout(
-        () => setShowOtpSheet(true),
-        Platform.OS === 'android' ? 250 : 120
-      );
+      setShowOtpSheet(true);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Unable to send OTP.');
     } finally {
@@ -97,7 +83,7 @@ export function LoginScreen() {
       edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={showOtpSheet ? undefined : Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}>
         <View style={styles.content}>
           <BackButton />

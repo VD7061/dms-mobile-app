@@ -35,6 +35,7 @@ export const vehicleInventory: VehicleItem[] = [
     transmission: 'Manual',
     insuranceValidTill: 'Mar 2027',
     lotLocation: 'Main Showroom',
+    photoCount: 9,
     expenses: [
       { label: 'Brake pad replacement', amount: '₹3,200' },
       { label: 'Painting & Polish', amount: '₹5,300' },

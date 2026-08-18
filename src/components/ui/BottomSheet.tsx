@@ -38,7 +38,7 @@ export function BottomSheet({ visible, onClose, children, style }: BottomSheetPr
       onRequestClose={handleClose}>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}>
         <View style={styles.overlay}>
           <Pressable style={styles.backdrop} onPress={handleClose} />

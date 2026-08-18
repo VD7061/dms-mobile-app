@@ -34,6 +34,10 @@ export const httpClient = axios.create({
     'Content-Type': 'application/json',
     'X-Platform': apiPlatform,
   },
+  // Repeatable query params (e.g. status, type) must serialize as plain
+  // repeated keys ("status=a&status=b"), not axios's default bracket
+  // notation ("status[]=a&status[]=b"), to match the API's expected format.
+  paramsSerializer: { indexes: null },
 });
 
 httpClient.interceptors.request.use(async (config) => {

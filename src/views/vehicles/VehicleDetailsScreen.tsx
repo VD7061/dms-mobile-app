@@ -2,7 +2,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BackButton } from '@/components/ui';
-import { Grid, Typography } from '@/constants/theme';
+import { FontFamily, Grid, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { vehicleInventory } from './data';
 import type { VehicleDocument, VehicleExpense, VehicleItem, VehicleStatus } from './types';
@@ -10,6 +10,8 @@ import type { VehicleDocument, VehicleExpense, VehicleItem, VehicleStatus } from
 type VehicleDetailsScreenProps = {
   vehicleId: string;
 };
+
+const PHOTO_CHIP_COUNT = 4;
 
 export function VehicleDetailsScreen({ vehicleId }: VehicleDetailsScreenProps) {
   const { colors, isDark } = useTheme();
@@ -34,13 +36,19 @@ export function VehicleDetailsScreen({ vehicleId }: VehicleDetailsScreenProps) {
   }
 
   const statusColors = getStatusColors(vehicle.status, colors, isDark);
-  const heroBackground = isDark ? colors['surface-container-high'] : colors['surface-container-high'];
-  const cardBackground = colors['surface-container'];
-  const dividerColor = colors['outline-variant'];
+  const heroBackground = colors['surface-container-high'];
+  const chipBackground = colors['surface-container-high'];
+  const outlineCardBackground = colors['surface-container-lowest'];
+  const borderColor = colors.primary;
+  const dividerColor = colors.primary;
   const specs = getVehicleSpecs(vehicle);
+  const profit = getProfitNote(vehicle.buyingPrice, vehicle.askingPrice);
+  const totalPhotos = vehicle.photoCount ?? PHOTO_CHIP_COUNT;
+  const visibleChipCount = Math.min(totalPhotos, PHOTO_CHIP_COUNT);
+  const extraPhotos = Math.max(totalPhotos - PHOTO_CHIP_COUNT, 0);
   const actionItems = [
     { label: 'Edit', icon: 'square-edit-outline' as const },
-    { label: 'Change status', icon: 'swap-horizontal' as const },
+    { label: 'Change State', icon: 'swap-horizontal' as const },
     { label: 'Sell', icon: 'tag-outline' as const },
     { label: 'Add Expense', icon: 'plus' as const },
   ];
@@ -59,44 +67,37 @@ export function VehicleDetailsScreen({ vehicleId }: VehicleDetailsScreenProps) {
         showsVerticalScrollIndicator={false}>
         <View style={[styles.heroCard, { backgroundColor: heroBackground }]}>
           <MaterialCommunityIcons name={vehicle.icon} size={96} color={colors['on-surface-variant']} />
-          <View style={[styles.favoriteButton, { borderColor: colors.outline }]}>
+          <View style={[styles.favoriteButton, { backgroundColor: outlineCardBackground }]}>
             <MaterialCommunityIcons name="heart-outline" size={16} color={colors.primary} />
           </View>
         </View>
 
-        <View style={styles.imageTabs}>
-          {[
-            { label: 'Front', icon: 'car-side' as const, active: true },
-            { label: 'Side', icon: 'car-estate' as const },
-            { label: 'Back', icon: 'car-back' as const },
-            { label: 'Interior', icon: 'steering' as const },
-          ].map((item) => (
+        <View style={styles.photoChips}>
+          {Array.from({ length: visibleChipCount }).map((_, index) => (
             <View
-              key={item.label}
+              key={index}
               style={[
-                styles.imageTab,
-                { backgroundColor: item.active ? colors['surface-container-high'] : cardBackground },
+                styles.photoChip,
+                {
+                  backgroundColor: chipBackground,
+                  borderColor: index === 0 ? borderColor : 'transparent',
+                  borderWidth: index === 0 ? 1 : 0,
+                },
               ]}>
-              <MaterialCommunityIcons
-                name={item.icon}
-                size={18}
-                color={item.active ? colors['on-surface'] : colors['on-surface-variant']}
-              />
-              <Text
-                style={[
-                  styles.imageTabLabel,
-                  { color: item.active ? colors['on-surface'] : colors['on-surface-variant'] },
-                ]}>
-                {item.label}
-              </Text>
+              <MaterialCommunityIcons name={vehicle.icon} size={20} color={colors.primary} />
             </View>
           ))}
+          {extraPhotos > 0 ? (
+            <View style={[styles.photoChip, styles.photoChipCount, { backgroundColor: chipBackground }]}>
+              <Text style={[styles.photoChipCountText, { color: colors.primary }]}>+{extraPhotos}</Text>
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.titleRow}>
           <View style={styles.titleBlock}>
             <Text style={[styles.title, { color: colors['on-surface'] }]}>{vehicle.name}</Text>
-            <Text style={[styles.bodyText, { color: colors['on-surface-variant'] }]}>
+            <Text style={[styles.registrationText, { color: colors['on-surface'] }]}>
               {vehicle.registration}
             </Text>
           </View>
@@ -109,23 +110,26 @@ export function VehicleDetailsScreen({ vehicleId }: VehicleDetailsScreenProps) {
 
         <View style={styles.priceGrid}>
           <PriceCard label="Buying price" value={vehicle.buyingPrice} />
-          <PriceCard label="Asking price" value={vehicle.askingPrice} />
+          <PriceCard label="Asking price" value={vehicle.askingPrice} note={profit} />
         </View>
 
         <View style={styles.actionsGrid}>
           {actionItems.map((item) => (
             <View
               key={item.label}
-              style={[styles.actionTile, { backgroundColor: colors['surface-container'] }]}>
-              <MaterialCommunityIcons name={item.icon} size={18} color={colors['on-surface']} />
-              <Text style={[styles.actionLabel, { color: colors['on-surface-variant'] }]}>
+              style={[
+                styles.actionTile,
+                { backgroundColor: outlineCardBackground, borderColor },
+              ]}>
+              <MaterialCommunityIcons name={item.icon} size={20} color={colors.primary} />
+              <Text style={[styles.actionLabel, { color: colors['on-surface'] }]}>
                 {item.label}
               </Text>
             </View>
           ))}
         </View>
 
-        <View style={[styles.specPanel, { backgroundColor: cardBackground }]}>
+        <View style={[styles.specPanel, { backgroundColor: outlineCardBackground, borderColor }]}>
           {specs.map((spec, index) => (
             <View
               key={spec.label}
@@ -138,7 +142,7 @@ export function VehicleDetailsScreen({ vehicleId }: VehicleDetailsScreenProps) {
                   borderRightWidth: index % 2 === 0 ? StyleSheet.hairlineWidth : 0,
                 },
               ]}>
-              <Text style={[styles.specLabel, { color: colors['on-surface-variant'] }]}>
+              <Text style={[styles.specLabel, { color: colors['on-surface'] }]}>
                 {spec.label}
               </Text>
               <Text style={[styles.specValue, { color: colors['on-surface'] }]}>
@@ -148,9 +152,9 @@ export function VehicleDetailsScreen({ vehicleId }: VehicleDetailsScreenProps) {
           ))}
         </View>
 
-        <View style={[styles.locationCard, { backgroundColor: cardBackground }]}>
+        <View style={[styles.locationCard, { backgroundColor: chipBackground, borderColor }]}>
           <View>
-            <Text style={[styles.specLabel, { color: colors['on-surface-variant'] }]}>
+            <Text style={[styles.specLabel, { color: colors['on-surface'] }]}>
               Current location
             </Text>
             <View style={styles.locationValue}>
@@ -164,11 +168,11 @@ export function VehicleDetailsScreen({ vehicleId }: VehicleDetailsScreenProps) {
         </View>
 
         <Text style={[styles.sectionKicker, { color: colors['on-surface-variant'] }]}>MORE INFO</Text>
-        <View style={[styles.infoCard, { backgroundColor: cardBackground }]}>
-          <DetailRow label="Engine number" value={vehicle.engineNumber} showDivider />
-          <DetailRow label="Chassis number" value={vehicle.chassisNumber} showDivider />
-          <DetailRow label="Transmission" value={vehicle.transmission} showDivider />
-          <DetailRow label="Color" value={vehicle.color} showDivider />
+        <View style={[styles.infoCard, { backgroundColor: outlineCardBackground, borderColor }]}>
+          <DetailRow label="Engine number" value={vehicle.engineNumber} showDivider dividerColor={dividerColor} />
+          <DetailRow label="Chassis number" value={vehicle.chassisNumber} showDivider dividerColor={dividerColor} />
+          <DetailRow label="Transmission" value={vehicle.transmission} showDivider dividerColor={dividerColor} />
+          <DetailRow label="Color" value={vehicle.color} showDivider dividerColor={dividerColor} />
           <DetailRow label="Insurance valid till" value={vehicle.insuranceValidTill} />
         </View>
 
@@ -185,13 +189,18 @@ export function VehicleDetailsScreen({ vehicleId }: VehicleDetailsScreenProps) {
   );
 }
 
-function PriceCard({ label, value }: { label: string; value: string }) {
+function PriceCard({ label, value, note }: { label: string; value: string; note?: string | null }) {
   const { colors } = useTheme();
 
   return (
-    <View style={[styles.priceCard, { backgroundColor: colors['surface-container'] }]}>
-      <Text style={[styles.priceLabel, { color: colors['on-surface-variant'] }]}>{label}</Text>
+    <View
+      style={[
+        styles.priceCard,
+        { backgroundColor: colors['surface-container'], borderColor: colors.primary },
+      ]}>
+      <Text style={[styles.priceLabel, { color: colors['on-surface'] }]}>{label}</Text>
       <Text style={[styles.priceValue, { color: colors['on-surface'] }]}>{value}</Text>
+      {note ? <Text style={[styles.priceNote, { color: colors.tertiary }]}>{note}</Text> : null}
     </View>
   );
 }
@@ -200,10 +209,14 @@ function DetailRow({
   label,
   value,
   showDivider,
+  dividerColor,
+  valueColor,
 }: {
   label: string;
   value: string;
   showDivider?: boolean;
+  dividerColor?: string;
+  valueColor?: string;
 }) {
   const { colors } = useTheme();
 
@@ -212,12 +225,12 @@ function DetailRow({
       style={[
         styles.detailRow,
         showDivider && {
-          borderBottomColor: colors['outline-variant'],
+          borderBottomColor: dividerColor ?? colors['outline-variant'],
           borderBottomWidth: StyleSheet.hairlineWidth,
         },
       ]}>
       <Text style={[styles.detailLabel, { color: colors['on-surface-variant'] }]}>{label}</Text>
-      <Text style={[styles.detailValue, { color: colors['on-surface'] }]}>{value}</Text>
+      <Text style={[styles.detailValue, { color: valueColor ?? colors['on-surface'] }]}>{value}</Text>
     </View>
   );
 }
@@ -227,18 +240,28 @@ function ExpenseSection({ expenses }: { expenses: VehicleExpense[] }) {
   const total = expenses.reduce((sum, expense) => sum + parseRupeeAmount(expense.amount), 0);
 
   return (
-    <View style={[styles.expenseCard, { backgroundColor: colors['surface-container'] }]}>
+    <View
+      style={[
+        styles.expenseCard,
+        { backgroundColor: colors['surface-container-lowest'], borderColor: colors.primary },
+      ]}>
       <View style={styles.expenseHeader}>
         <Text style={[styles.sectionTitle, { color: colors['on-surface'] }]}>Vehicle Expenses</Text>
-        <View style={[styles.addSmallButton, { backgroundColor: colors['on-surface'] }]}>
-          <MaterialCommunityIcons name="plus" size={12} color={colors.background} />
-          <Text style={[styles.addSmallText, { color: colors.background }]}>Add</Text>
+        <View style={[styles.addSmallButton, { backgroundColor: colors['surface-container-high'] }]}>
+          <MaterialCommunityIcons name="plus" size={12} color={colors.primary} />
+          <Text style={[styles.addSmallText, { color: colors.primary }]}>Add</Text>
         </View>
       </View>
       {expenses.map((expense) => (
-        <DetailRow key={expense.label} label={expense.label} value={expense.amount} showDivider />
+        <DetailRow
+          key={expense.label}
+          label={expense.label}
+          value={expense.amount}
+          showDivider
+          dividerColor={colors.primary}
+        />
       ))}
-      <DetailRow label="Total expenses" value={formatRupeeAmount(total)} />
+      <DetailRow label="Total expenses" value={formatRupeeAmount(total)} valueColor={colors.error} />
     </View>
   );
 }
@@ -248,13 +271,13 @@ function DocumentRow({ document }: { document: VehicleDocument }) {
   const complete = document.status === 'complete';
 
   return (
-    <View style={[styles.documentRow, { backgroundColor: colors['surface-container'] }]}>
+    <View
+      style={[
+        styles.documentRow,
+        { backgroundColor: colors['surface-container-lowest'], borderColor: colors.primary },
+      ]}>
       <View style={styles.documentTitle}>
-        <MaterialCommunityIcons
-          name="file-document-outline"
-          size={16}
-          color={colors['on-surface-variant']}
-        />
+        <MaterialCommunityIcons name="file-document-outline" size={18} color={colors.primary} />
         <Text style={[styles.documentLabel, { color: colors['on-surface'] }]}>
           {document.label}
         </Text>
@@ -287,6 +310,50 @@ function formatRupeeAmount(amount: number) {
   return `₹${amount.toLocaleString('en-IN')}`;
 }
 
+function parseLakhAmount(value: string) {
+  const match = value.replace(/[₹,\s]/g, '').match(/^([\d.]+)\s*([lLcC]?)/);
+
+  if (!match) {
+    return null;
+  }
+
+  const amount = Number(match[1]);
+
+  if (!Number.isFinite(amount)) {
+    return null;
+  }
+
+  const unit = match[2]?.toLowerCase();
+
+  if (unit === 'l') {
+    return amount * 100000;
+  }
+
+  if (unit === 'c') {
+    return amount * 10000000;
+  }
+
+  return amount;
+}
+
+function getProfitNote(buyingPrice: string, askingPrice: string) {
+  const buying = parseLakhAmount(buyingPrice);
+  const asking = parseLakhAmount(askingPrice);
+
+  if (buying === null || asking === null) {
+    return null;
+  }
+
+  const diff = asking - buying;
+
+  if (diff === 0) {
+    return null;
+  }
+
+  const formatted = `₹${Math.abs(diff).toLocaleString('en-IN')}`;
+  return diff > 0 ? `${formatted} profit` : `${formatted} loss`;
+}
+
 function getStatusColors(
   status: VehicleStatus,
   colors: ReturnType<typeof useTheme>['colors'],
@@ -294,8 +361,8 @@ function getStatusColors(
 ) {
   const variants = {
     Available: {
-      backgroundColor: isDark ? colors['tertiary-container'] : colors['tertiary-fixed'],
-      textColor: isDark ? colors['on-tertiary-container'] : colors['on-tertiary-fixed'],
+      backgroundColor: colors['surface-container-high'],
+      textColor: colors.primary,
     },
     Sold: {
       backgroundColor: colors['error-container'],
@@ -328,7 +395,7 @@ const styles = StyleSheet.create({
     paddingTop: 17,
   },
   heroCard: {
-    height: 177,
+    height: 179,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
@@ -341,29 +408,31 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  imageTabs: {
+  photoChips: {
     flexDirection: 'row',
-    gap: 9,
+    gap: 10,
     marginTop: 12,
   },
-  imageTab: {
+  photoChip: {
     flex: 1,
-    height: 47,
-    borderRadius: 8,
+    height: 48,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  imageTabLabel: {
-    ...Typography.micro,
-    marginTop: 2,
+  photoChipCount: {
+    flexBasis: 0,
+  },
+  photoChipCountText: {
+    fontFamily: Typography.screenTitle.fontFamily,
+    fontSize: 16,
   },
   titleRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: 12,
     marginTop: 17,
@@ -372,9 +441,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    ...Typography.title,
-    fontSize: 19,
-    lineHeight: 24,
+    fontFamily: Typography.screenTitle.fontFamily,
+    fontSize: 24,
+    lineHeight: 29,
+  },
+  registrationText: {
+    fontFamily: FontFamily.regular,
+    fontSize: 17,
+    lineHeight: 21,
+    marginTop: 2,
   },
   bodyText: {
     ...Typography.body,
@@ -383,15 +458,14 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   statusPill: {
-    borderRadius: 20,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
+    borderRadius: 30,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
   statusText: {
-    ...Typography.caption,
-    fontFamily: Typography.screenTitle.fontFamily,
-    fontSize: 8,
-    lineHeight: 10,
+    fontFamily: FontFamily.medium,
+    fontSize: 10,
+    lineHeight: 12,
   },
   priceGrid: {
     flexDirection: 'row',
@@ -400,21 +474,29 @@ const styles = StyleSheet.create({
   },
   priceCard: {
     flex: 1,
-    height: 83,
+    minHeight: 92,
     borderRadius: 10,
+    borderWidth: 0.5,
     justifyContent: 'center',
     paddingHorizontal: 15,
+    paddingVertical: 12,
   },
   priceLabel: {
-    ...Typography.caption,
-    fontSize: 10,
-    lineHeight: 12,
+    fontFamily: FontFamily.regular,
+    fontSize: 13,
+    lineHeight: 16,
   },
   priceValue: {
-    ...Typography.title,
+    fontFamily: FontFamily.medium,
     fontSize: 24,
-    lineHeight: 31,
-    marginTop: 5,
+    lineHeight: 29,
+    marginTop: 4,
+  },
+  priceNote: {
+    fontFamily: FontFamily.regular,
+    fontSize: 11,
+    lineHeight: 14,
+    marginTop: 4,
   },
   actionsGrid: {
     flexDirection: 'row',
@@ -423,45 +505,48 @@ const styles = StyleSheet.create({
   },
   actionTile: {
     flex: 1,
-    height: 69,
-    borderRadius: 10,
+    height: 65,
+    borderRadius: 15,
+    borderWidth: 0.5,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 4,
   },
   actionLabel: {
-    ...Typography.micro,
-    fontSize: 8,
-    lineHeight: 10,
+    fontFamily: FontFamily.regular,
+    fontSize: 9,
+    lineHeight: 11,
     marginTop: 7,
     textAlign: 'center',
   },
   specPanel: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    borderRadius: 10,
+    borderRadius: 15,
+    borderWidth: 0.5,
     marginTop: 13,
     overflow: 'hidden',
   },
   specCell: {
     width: '50%',
-    minHeight: 73,
+    minHeight: 82,
     paddingHorizontal: 17,
-    paddingVertical: 14,
+    paddingVertical: 16,
   },
   specLabel: {
-    ...Typography.caption,
-    fontSize: 9,
-    lineHeight: 11,
+    fontFamily: FontFamily.regular,
+    fontSize: 11,
+    lineHeight: 13,
   },
   specValue: {
-    ...Typography.screenTitle,
-    fontSize: 11,
-    lineHeight: 14,
+    fontFamily: FontFamily.regular,
+    fontSize: 15,
+    lineHeight: 18,
     marginTop: 8,
   },
   locationCard: {
-    borderRadius: 10,
+    borderRadius: 15,
+    borderWidth: 0.5,
     minHeight: 63,
     marginTop: 13,
     paddingHorizontal: 15,
@@ -476,82 +561,83 @@ const styles = StyleSheet.create({
     marginTop: 7,
   },
   locationText: {
-    ...Typography.body,
-    fontSize: 12,
-    lineHeight: 15,
+    fontFamily: FontFamily.regular,
+    fontSize: 15,
+    lineHeight: 18,
   },
   sectionKicker: {
-    ...Typography.caption,
-    fontFamily: Typography.screenTitle.fontFamily,
-    fontSize: 10,
-    lineHeight: 13,
+    fontFamily: FontFamily.medium,
+    fontSize: 14,
+    lineHeight: 17,
     marginBottom: 9,
     marginTop: 17,
   },
   infoCard: {
-    borderRadius: 10,
+    borderRadius: 20,
+    borderWidth: 0.5,
     overflow: 'hidden',
   },
   sectionTitle: {
-    ...Typography.screenTitle,
-    fontSize: 12,
-    lineHeight: 15,
+    fontFamily: FontFamily.medium,
+    fontSize: 15,
+    lineHeight: 18,
   },
   detailRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: 16,
-    paddingHorizontal: 15,
-    minHeight: 44,
+    paddingHorizontal: 20,
+    minHeight: 51,
     alignItems: 'center',
     paddingVertical: 12,
   },
   detailLabel: {
-    ...Typography.caption,
-    fontSize: 10,
-    lineHeight: 13,
+    fontFamily: FontFamily.regular,
+    fontSize: 14,
+    lineHeight: 17,
   },
   detailValue: {
-    ...Typography.caption,
-    fontFamily: Typography.screenTitle.fontFamily,
-    fontSize: 10,
-    lineHeight: 13,
+    fontFamily: FontFamily.medium,
+    fontSize: 15,
+    lineHeight: 18,
     flexShrink: 1,
     textAlign: 'right',
   },
   expenseCard: {
-    borderRadius: 10,
+    borderRadius: 20,
+    borderWidth: 0.5,
     marginTop: 18,
     overflow: 'hidden',
   },
   expenseHeader: {
-    minHeight: 42,
+    minHeight: 51,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 15,
+    paddingHorizontal: 20,
   },
   addSmallButton: {
-    height: 24,
+    height: 25,
     minWidth: 62,
-    borderRadius: 12,
+    borderRadius: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
+    gap: 5,
+    paddingHorizontal: 14,
   },
   addSmallText: {
-    ...Typography.caption,
     fontFamily: Typography.screenTitle.fontFamily,
-    fontSize: 10,
+    fontSize: 12,
   },
   documentList: {
     gap: 10,
   },
   documentRow: {
-    height: 47,
-    borderRadius: 10,
-    paddingHorizontal: 15,
+    height: 59,
+    borderRadius: 15,
+    borderWidth: 0.5,
+    paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -562,9 +648,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   documentLabel: {
-    ...Typography.screenTitle,
-    fontSize: 12,
-    lineHeight: 15,
+    fontFamily: FontFamily.regular,
+    fontSize: 15,
+    lineHeight: 18,
   },
   missingContent: {
     flex: 1,
