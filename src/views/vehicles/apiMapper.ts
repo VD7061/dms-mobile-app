@@ -2,6 +2,20 @@ import type { VehicleCategory, VehicleItem, VehicleStatus } from './types';
 
 export type ApiVehicleStatus = 'garage' | 'inspection' | 'ready_for_sale' | 'sold';
 
+export type ApiVehicleImage = {
+  id: number;
+  url: string;
+};
+
+/**
+ * Images arrive grouped by section, e.g. `{ exterior: [...], interior: [...] }`,
+ * and the key is simply absent when a vehicle has no photos in that section.
+ */
+export type ApiVehicleImages = Record<string, ApiVehicleImage[] | undefined>;
+
+// Sections are tried in this order when picking the card/hero thumbnail.
+const IMAGE_SECTION_PRIORITY = ['exterior', 'interior', 'engine', 'odometer'];
+
 export type ApiVehicle = {
   id: number;
   vehicle_type: 'car' | 'bike' | 'scooty';
@@ -23,6 +37,7 @@ export type ApiVehicle = {
     currency?: string;
     tagged_at?: string;
   } | null;
+  images?: ApiVehicleImages | null;
 };
 
 export type ApiVehicleGroup = {
@@ -146,10 +161,24 @@ function formatNote(status: VehicleStatus, startedAt?: string) {
   return `In prep ${days} days`;
 }
 
+function collectImages(images?: ApiVehicleImages | null): ApiVehicleImage[] {
+  if (!images) {
+    return [];
+  }
+
+  const known = IMAGE_SECTION_PRIORITY.flatMap((section) => images[section] ?? []);
+  const rest = Object.entries(images)
+    .filter(([section]) => !IMAGE_SECTION_PRIORITY.includes(section))
+    .flatMap(([, sectionImages]) => sectionImages ?? []);
+
+  return [...known, ...rest].filter((image) => Boolean(image?.url));
+}
+
 export function mapApiVehicleToItem(vehicle: ApiVehicle): VehicleItem {
   const status = mapApiStatus(vehicle.current_status?.status);
   const buyingPrice = formatRupees(vehicle.pricing?.buying_price);
   const askingPrice = formatRupees(vehicle.pricing?.price_tag);
+  const images = collectImages(vehicle.images);
 
   return {
     id: String(vehicle.id),
@@ -163,6 +192,9 @@ export function mapApiVehicleToItem(vehicle: ApiVehicle): VehicleItem {
     meta: `${vehicle.year_of_manufacture} · ${formatUsageKm(vehicle.usage_km)} · ${capitalize(vehicle.fuel_type)}`,
     note: formatNote(status, vehicle.current_status?.started_at),
     icon: mapVehicleIcon(vehicle.vehicle_type),
+    imageUrl: images[0]?.url,
+    imageUrls: images.map((image) => image.url),
+    photoCount: images.length,
     owner: '',
     color: vehicle.color ?? '',
     engineNumber: '',

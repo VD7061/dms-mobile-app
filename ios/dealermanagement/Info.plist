@@ -45,8 +45,14 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Dealer Management needs camera access so you can take showroom logo and banner photos.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Allow $(PRODUCT_NAME) to access your Face ID biometric data.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Dealer Management needs your location to auto-fill showroom address details.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Dealer Management needs photo library access so you can select showroom logo and banner images.</string>
 	<key>NSUserActivityTypes</key>
 	<array>
 		<string>$(PRODUCT_BUNDLE_IDENTIFIER).expo.index_route</string>

@@ -20,6 +20,9 @@ export type VehicleItem = {
   meta: string;
   note: string;
   icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+  /** Primary photo. Signed URL from the API — expires roughly an hour after it is issued. */
+  imageUrl?: string;
+  imageUrls?: string[];
   owner: string;
   color: string;
   engineNumber: string;

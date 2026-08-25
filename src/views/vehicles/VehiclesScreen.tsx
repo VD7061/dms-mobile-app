@@ -1,8 +1,8 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
 import {
   ActivityIndicator,
-  ScrollView,
+  FlatList,
   StyleSheet,
   Text,
   View,
@@ -41,8 +41,10 @@ export function VehiclesScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const { width: screenWidth } = useWindowDimensions();
-  const primaryShowroomId = useAuthStore((s) => s.primaryShowroomId);
-  const setPrimaryShowroomId = useAuthStore((s) => s.setPrimaryShowroomId);
+  // Read imperatively rather than subscribing: the focus effect below *sets*
+  // this value, and subscribing made the effect's identity change mid-load,
+  // which re-ran the whole fetch a second time on every first visit.
+  const primaryShowroomIdRef = useRef(useAuthStore.getState().primaryShowroomId);
   const [selectedCategory, setSelectedCategory] = useState<VehicleCategory>('Cars');
   const [selectedStatus, setSelectedStatus] = useState<VehicleStatusFilter>('All');
   const [searchQuery, setSearchQuery] = useState('');
@@ -58,8 +60,9 @@ export function VehiclesScreen() {
       setIsLoading(true);
       setErrorMessage('');
 
-      const resolveShowroomId = primaryShowroomId
-        ? Promise.resolve(primaryShowroomId)
+      const knownShowroomId = primaryShowroomIdRef.current;
+      const resolveShowroomId = knownShowroomId
+        ? Promise.resolve(knownShowroomId)
         : getProfile().then((profileResponse) => {
             const profileData =
               (profileResponse as unknown as { data?: ProfileData })?.data ??
@@ -67,7 +70,8 @@ export function VehiclesScreen() {
             const resolvedId = getPrimaryShowroomId(profileData);
 
             if (resolvedId) {
-              setPrimaryShowroomId(resolvedId);
+              primaryShowroomIdRef.current = resolvedId;
+              useAuthStore.getState().setPrimaryShowroomId(resolvedId);
             }
 
             return resolvedId;
@@ -84,10 +88,6 @@ export function VehiclesScreen() {
         .then((response) => {
           if (cancelled) {
             return;
-          }
-
-          if (__DEV__) {
-            console.log('Vehicle listing response', response);
           }
 
           const responseData = response as unknown as { data?: ApiVehicleListing };
@@ -108,7 +108,7 @@ export function VehiclesScreen() {
       return () => {
         cancelled = true;
       };
-    }, [primaryShowroomId, setPrimaryShowroomId])
+    }, [])
   );
 
   const groups = listing ?? { cars: emptyGroup, bikes: emptyGroup, scooties: emptyGroup };
@@ -169,6 +169,16 @@ export function VehiclesScreen() {
     });
   }, [searchQuery, selectedCategoryVehicles, selectedStatus]);
 
+  const openVehicle = useCallback(
+    (id: string) => router.push({ pathname: '/vehicle/[id]', params: { id } }),
+    [router]
+  );
+
+  const renderVehicle = useCallback(
+    ({ item }: { item: VehicleItem }) => <VehicleCard vehicle={item} onPress={openVehicle} />,
+    [openVehicle]
+  );
+
   return (
     <SafeAreaView
       style={[styles.screen, { backgroundColor: colors.background }]}
@@ -201,22 +211,22 @@ export function VehiclesScreen() {
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
       ) : (
-        <ScrollView
+        <FlatList
           style={styles.scroll}
+          data={filteredVehicles}
+          keyExtractor={keyExtractor}
+          renderItem={renderVehicle}
+          ListHeaderComponent={
+            <VehicleListHeader selectedCategory={selectedCategory} count={filteredVehicles.length} />
+          }
           contentContainerStyle={[styles.content, { paddingHorizontal: horizontalPadding }]}
-          showsVerticalScrollIndicator={false}>
-          <VehicleListHeader selectedCategory={selectedCategory} count={filteredVehicles.length} />
-
-          <View style={styles.list}>
-            {filteredVehicles.map((vehicle) => (
-              <VehicleCard
-                key={vehicle.id}
-                vehicle={vehicle}
-                onPress={() => router.push({ pathname: '/vehicle/[id]', params: { id: vehicle.id } })}
-              />
-            ))}
-          </View>
-        </ScrollView>
+          ItemSeparatorComponent={ItemSeparator}
+          showsVerticalScrollIndicator={false}
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          windowSize={7}
+          removeClippedSubviews
+        />
       )}
 
       <View
@@ -231,6 +241,14 @@ export function VehiclesScreen() {
       </View>
     </SafeAreaView>
   );
+}
+
+function keyExtractor(vehicle: VehicleItem) {
+  return vehicle.id;
+}
+
+function ItemSeparator() {
+  return <View style={styles.separator} />;
 }
 
 function formatStockValue(vehicles: VehicleItem[]) {
@@ -270,8 +288,8 @@ const styles = StyleSheet.create({
   content: {
     paddingBottom: 24,
   },
-  list: {
-    gap: 14,
+  separator: {
+    height: 14,
   },
   loading: {
     flex: 1,

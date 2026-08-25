@@ -1,4 +1,6 @@
+import { memo, useCallback } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
@@ -6,16 +8,19 @@ import type { VehicleItem, VehicleStatus } from '../types';
 
 type VehicleCardProps = {
   vehicle: VehicleItem;
-  onPress?: () => void;
+  onPress?: (id: string) => void;
 };
 
-export function VehicleCard({ vehicle, onPress }: VehicleCardProps) {
+// Memoized: the inventory list re-renders on every keystroke in the search bar
+// and on every filter change, and each card is a fairly deep subtree.
+function VehicleCardComponent({ vehicle, onPress }: VehicleCardProps) {
   const { colors } = useTheme();
   const statusColors = getStatusColors(vehicle.status, colors);
+  const handlePress = useCallback(() => onPress?.(vehicle.id), [onPress, vehicle.id]);
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={handlePress}
       style={({ pressed }) => [
         styles.card,
         {
@@ -25,7 +30,22 @@ export function VehicleCard({ vehicle, onPress }: VehicleCardProps) {
         },
       ]}>
       <View style={[styles.thumbnail, { backgroundColor: colors['surface-container-high'] }]}>
-        <MaterialCommunityIcons name={vehicle.icon} size={34} color={colors.primary} />
+        {vehicle.imageUrl ? (
+          <Image
+            source={{ uri: vehicle.imageUrl }}
+            style={styles.thumbnailImage}
+            contentFit="cover"
+            transition={150}
+            cachePolicy="memory-disk"
+            // Keyed by vehicle rather than URL: the API hands back a freshly
+            // signed URL on every listing fetch, and without this the view
+            // would blank out and re-fade each time the list reloads.
+            recyclingKey={vehicle.id}
+            placeholderContentFit="contain"
+          />
+        ) : (
+          <MaterialCommunityIcons name={vehicle.icon} size={34} color={colors.primary} />
+        )}
       </View>
 
       <View style={styles.content}>
@@ -52,6 +72,8 @@ export function VehicleCard({ vehicle, onPress }: VehicleCardProps) {
     </Pressable>
   );
 }
+
+export const VehicleCard = memo(VehicleCardComponent);
 
 function getStatusColors(status: VehicleStatus, colors: ReturnType<typeof useTheme>['colors']) {
   const variants = {
@@ -89,6 +111,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
+    overflow: 'hidden',
+  },
+  thumbnailImage: {
+    width: '100%',
+    height: '100%',
   },
   content: {
     flex: 1,

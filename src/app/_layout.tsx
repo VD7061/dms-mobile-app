@@ -5,9 +5,13 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
+import { enableFreeze } from 'react-native-screens';
 import { DevApiErrorReporter } from '@/components/dev/DevApiErrorReporter';
 import { AppAlertProvider } from '@/components/ui';
 import { useNavigationTheme } from '@/hooks/useNavigationTheme';
+
+// Stop off-screen tabs and stack screens from re-rendering while hidden.
+enableFreeze(true);
 
 SplashScreen.preventAutoHideAsync();
 
