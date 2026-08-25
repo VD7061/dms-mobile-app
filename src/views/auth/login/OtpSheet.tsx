@@ -48,9 +48,15 @@ export function OtpSheet({
   const [secondsLeft, setSecondsLeft] = useState(RESEND_SECONDS);
   const [isVerifying, setIsVerifying] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  // Drives OtpInput's autoFocus. Set from the sheet's real onDidPresent
+  // event rather than visible, since visible flips true as soon as
+  // present() is called — before the native sheet's presentation animation
+  // has actually finished and its content can accept keyboard focus.
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   useEffect(() => {
     if (!visible) {
+      setIsSheetOpen(false);
       return;
     }
 
@@ -96,7 +102,7 @@ export function OtpSheet({
   };
 
   return (
-    <BottomSheet visible={visible} onClose={onClose}>
+    <BottomSheet visible={visible} onClose={onClose} onOpen={() => setIsSheetOpen(true)}>
       <View style={styles.header}>
         <Pressable
           onPress={onClose}
@@ -129,7 +135,7 @@ export function OtpSheet({
       </Text>
 
       <View style={styles.otpInput}>
-        <OtpInput value={otp} onChange={setOtp} autoFocus={visible} />
+        <OtpInput value={otp} onChange={setOtp} autoFocus={isSheetOpen} />
       </View>
 
       <Text style={[Typography.body, styles.resend, { color: colors['on-surface-variant'] }]}>

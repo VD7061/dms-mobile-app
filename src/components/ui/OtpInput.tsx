@@ -16,9 +16,11 @@ export function OtpInput({ value, onChange, autoFocus }: OtpInputProps) {
   const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
+    // The caller now flips autoFocus true only once its sheet has actually
+    // finished presenting (see OtpSheet's onOpen), so there's no longer a
+    // timing race to guess around with a delay.
     if (autoFocus) {
-      const timer = setTimeout(() => inputRef.current?.focus(), 300);
-      return () => clearTimeout(timer);
+      inputRef.current?.focus();
     }
   }, [autoFocus]);
 

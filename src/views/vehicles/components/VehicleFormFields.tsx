@@ -116,52 +116,75 @@ export function SelectField({ label, value, options, onChange, placeholder }: Se
           {label}
         </Text>
 
-        <ScrollView
-          style={isLongList ? { maxHeight: screenHeight * 0.5 } : undefined}
-          contentContainerStyle={styles.sheetOptions}
-          showsVerticalScrollIndicator={isLongList}>
-          {options.map((option) => {
-            const isSelected = option.value === value;
-
-            return (
-              <Pressable
+        {isLongList ? (
+          <ScrollView
+            style={{ maxHeight: screenHeight * 0.5 }}
+            contentContainerStyle={styles.sheetOptions}
+            showsVerticalScrollIndicator>
+            {options.map((option) => (
+              <SelectOptionRow
                 key={option.value}
+                option={option}
+                isSelected={option.value === value}
                 onPress={() => {
                   setIsOpen(false);
                   onChange(option.value);
                 }}
-                style={({ pressed }) => [
-                  styles.sheetOption,
-                  {
-                    backgroundColor: isSelected
-                      ? colors['surface-container']
-                      : colors['surface-container-low'],
-                    borderColor: isSelected ? colors.primary : colors['outline-variant'],
-                    opacity: pressed ? 0.85 : 1,
-                  },
-                ]}>
-                {option.icon ? (
-                  <View style={[styles.sheetOptionIcon, { backgroundColor: colors['surface-container'] }]}>
-                    <MaterialCommunityIcons name={option.icon} size={22} color={colors.primary} />
-                  </View>
-                ) : null}
-                <Text
-                  style={[
-                    Typography.body,
-                    styles.sheetOptionLabel,
-                    { color: colors['on-surface'] },
-                  ]}>
-                  {option.label}
-                </Text>
-                {isSelected ? (
-                  <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
-                ) : null}
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+              />
+            ))}
+          </ScrollView>
+        ) : (
+          <View style={styles.sheetOptions}>
+            {options.map((option) => (
+              <SelectOptionRow
+                key={option.value}
+                option={option}
+                isSelected={option.value === value}
+                onPress={() => {
+                  setIsOpen(false);
+                  onChange(option.value);
+                }}
+              />
+            ))}
+          </View>
+        )}
       </BottomSheet>
     </>
+  );
+}
+
+function SelectOptionRow({
+  option,
+  isSelected,
+  onPress,
+}: {
+  option: SelectOption;
+  isSelected: boolean;
+  onPress: () => void;
+}) {
+  const { colors } = useTheme();
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.sheetOption,
+        {
+          backgroundColor: isSelected ? colors['surface-container'] : colors['surface-container-low'],
+          borderColor: isSelected ? colors.primary : colors['outline-variant'],
+          opacity: pressed ? 0.85 : 1,
+        },
+      ]}>
+      {option.icon ? (
+        <View style={[styles.sheetOptionIcon, { backgroundColor: colors['surface-container'] }]}>
+          <MaterialCommunityIcons name={option.icon} size={22} color={colors.primary} />
+        </View>
+      ) : null}
+      <Text style={[Typography.body, styles.sheetOptionLabel, { color: colors['on-surface'] }]}>
+        {option.label}
+      </Text>
+      {isSelected ? <Ionicons name="checkmark-circle" size={20} color={colors.primary} /> : null}
+    </Pressable>
   );
 }
 

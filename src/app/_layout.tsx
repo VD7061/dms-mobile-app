@@ -1,8 +1,10 @@
 import { useEffect } from 'react';
+import { StyleSheet } from 'react-native';
 import { ThemeProvider, Stack } from 'expo-router';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { enableFreeze } from 'react-native-screens';
@@ -53,16 +55,26 @@ export default function RootLayout() {
   }
 
   return (
-    <SafeAreaProvider>
-      <KeyboardProvider>
-        <ThemeProvider value={navigationTheme}>
-          <AppAlertProvider>
-            <StatusBar style={navigationTheme.isDark ? 'light' : 'dark'} />
-            <RootNavigator />
-            <DevApiErrorReporter />
-          </AppAlertProvider>
-        </ThemeProvider>
-      </KeyboardProvider>
-    </SafeAreaProvider>
+    // Recommended by react-native-gesture-handler for any app using
+    // gesture-driven navigation, regardless of which library consumes it.
+    <GestureHandlerRootView style={styles.flex}>
+      <SafeAreaProvider>
+        <KeyboardProvider>
+          <ThemeProvider value={navigationTheme}>
+            <AppAlertProvider>
+              <StatusBar style={navigationTheme.isDark ? 'light' : 'dark'} />
+              <RootNavigator />
+              <DevApiErrorReporter />
+            </AppAlertProvider>
+          </ThemeProvider>
+        </KeyboardProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
+});
