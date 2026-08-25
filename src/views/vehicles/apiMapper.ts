@@ -74,7 +74,11 @@ function mapApiStatus(status?: ApiVehicleStatus | null): VehicleStatus {
     return 'Sold';
   }
 
-  return 'In Repair';
+  if (status === 'inspection') {
+    return 'Inspection';
+  }
+
+  return 'In Garage';
 }
 
 function mapVehicleIcon(vehicleType: ApiVehicle['vehicle_type']): VehicleItem['icon'] {
@@ -158,7 +162,11 @@ function formatNote(status: VehicleStatus, startedAt?: string) {
     return `${days} days in lot`;
   }
 
-  return `In prep ${days} days`;
+  if (status === 'Inspection') {
+    return `In inspection ${days} days`;
+  }
+
+  return `In garage ${days} days`;
 }
 
 function collectImages(images?: ApiVehicleImages | null): ApiVehicleImage[] {

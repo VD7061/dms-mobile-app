@@ -1,6 +1,4 @@
-import type { VehicleCategoryTab, VehicleItem, VehicleStat, VehicleStatusFilter } from './types';
-
-export const vehicleStatusFilters: VehicleStatusFilter[] = ['All', 'Available', 'Sold', 'In Repair'];
+import type { VehicleCategoryTab, VehicleItem, VehicleStat } from './types';
 
 export const vehicleCategoryTabs: VehicleCategoryTab[] = [
   { label: 'Cars', value: 'Cars', count: 24, icon: 'car-sports' },
@@ -85,7 +83,7 @@ export const vehicleInventory: VehicleItem[] = [
     price: '₹9.1L',
     buyingPrice: '₹8.45L',
     askingPrice: '₹9.10L',
-    status: 'In Repair',
+    status: 'In Garage',
     meta: '2018 · 78K km · Petrol',
     note: '28 days in lot',
     icon: 'car-side',
@@ -175,7 +173,7 @@ export const vehicleInventory: VehicleItem[] = [
     price: '₹62K',
     buyingPrice: '₹52K',
     askingPrice: '₹62K',
-    status: 'In Repair',
+    status: 'In Garage',
     meta: '2022 · 9K km · Petrol',
     note: 'Service pending',
     icon: 'scooter',

@@ -2,7 +2,10 @@ import type { MaterialCommunityIcons } from '@expo/vector-icons';
 
 export type VehicleFilter = 'All' | 'Cars' | 'Bikes' | 'Scooty';
 
-export type VehicleStatus = 'Available' | 'Sold' | 'In Repair';
+// Mirrors the API's `current_status.status` vocabulary
+// ('garage' | 'inspection' | 'ready_for_sale' | 'sold') so a vehicle sitting
+// in the garage is not mislabelled as being repaired.
+export type VehicleStatus = 'Available' | 'Sold' | 'In Garage' | 'Inspection';
 
 export type VehicleCategory = Exclude<VehicleFilter, 'All'>;
 

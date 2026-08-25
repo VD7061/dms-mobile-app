@@ -5,6 +5,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { Grid } from '@/constants/theme';
 import { getDashboard } from '@/services';
 import { useAuthStore } from '@/store';
+import { resolvePrimaryShowroomId } from '@/utils/showroom';
 import { ScreenTopArea } from '@/components/ui';
 import { MetricCard } from './components/MetricCard';
 import { MetricGrid } from './components/MetricGrid';
@@ -70,8 +71,15 @@ export function DashboardScreen() {
       setIsDashboardLoading(true);
 
       try {
+        const showroomId = await resolvePrimaryShowroomId();
+
+        if (cancelled) {
+          return;
+        }
+
         const response = await getDashboard({
           duration: toDashboardDuration(selectedRange),
+          showroomId,
         });
         const data = (response as unknown as DashboardResponse).data;
 
@@ -148,8 +156,10 @@ export function DashboardScreen() {
   );
 }
 
-function toDashboardDuration(range: TimeRange) {
-  const map: Record<TimeRange, string> = {
+type DashboardDuration = '1w' | '1m' | '3m' | '6m' | '12m' | 'lifetime';
+
+function toDashboardDuration(range: TimeRange): DashboardDuration {
+  const map: Record<TimeRange, DashboardDuration> = {
     '1W': '1w',
     '1M': '1m',
     '3M': '3m',

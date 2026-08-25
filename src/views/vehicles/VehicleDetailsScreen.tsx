@@ -368,9 +368,13 @@ function getStatusColors(
       backgroundColor: colors['error-container'],
       textColor: colors['on-error-container'],
     },
-    'In Repair': {
+    'In Garage': {
       backgroundColor: colors['surface-container-high'],
       textColor: colors['on-surface-variant'],
+    },
+    Inspection: {
+      backgroundColor: colors['secondary-container'],
+      textColor: colors['on-secondary-container'],
     },
   };
 

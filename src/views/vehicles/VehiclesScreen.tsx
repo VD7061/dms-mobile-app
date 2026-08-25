@@ -21,9 +21,8 @@ import { VehicleCategoryTabs } from './components/VehicleCategoryTabs';
 import { VehicleListHeader } from './components/VehicleListHeader';
 import { VehicleSearchBar } from './components/VehicleSearchBar';
 import { VehicleStatsRow } from './components/VehicleStatsRow';
-import { VehicleStatusChips } from './components/VehicleStatusChips';
-import { vehicleCategoryTabs, vehicleStatusFilters } from './data';
-import type { VehicleCategory, VehicleItem, VehicleStat, VehicleStatus, VehicleStatusFilter } from './types';
+import { vehicleCategoryTabs } from './data';
+import type { VehicleCategory, VehicleItem, VehicleStat } from './types';
 
 const LISTING_LIMIT = 100;
 const emptyGroup = { total: 0, page: 1, limit: LISTING_LIMIT, vehicles: [] };
@@ -46,7 +45,6 @@ export function VehiclesScreen() {
   // which re-ran the whole fetch a second time on every first visit.
   const primaryShowroomIdRef = useRef(useAuthStore.getState().primaryShowroomId);
   const [selectedCategory, setSelectedCategory] = useState<VehicleCategory>('Cars');
-  const [selectedStatus, setSelectedStatus] = useState<VehicleStatusFilter>('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [listing, setListing] = useState<ApiVehicleListing | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -125,49 +123,41 @@ export function VehiclesScreen() {
     return groups[categoryToApiGroupKey(selectedCategory)].vehicles.map(mapApiVehicleToItem);
   }, [groups, selectedCategory]);
 
-  const statusCounts = useMemo(() => {
-    return selectedCategoryVehicles.reduce<Record<VehicleStatus, number>>(
-      (counts, vehicle) => {
-        counts[vehicle.status] += 1;
-        return counts;
-      },
-      { Available: 0, Sold: 0, 'In Repair': 0 }
-    );
-  }, [selectedCategoryVehicles]);
-
   const stats = useMemo<VehicleStat[]>(() => {
-    return [
+    const availableCount = selectedCategoryVehicles.filter(
+      (vehicle) => vehicle.status === 'Available'
+    ).length;
+
+    const tiles: VehicleStat[] = [
       { value: String(selectedCategoryVehicles.length), label: 'Total', tone: 'default' },
-      { value: String(statusCounts.Available), label: 'Available', tone: 'success' },
-      { value: String(statusCounts['In Repair']), label: 'Dead stock', tone: 'danger' },
-      {
-        value: formatStockValue(selectedCategoryVehicles),
-        label: 'Stock value',
-        tone: 'primary',
-      },
+      { value: String(availableCount), label: 'Available', tone: 'success' },
     ];
-  }, [selectedCategoryVehicles, statusCounts]);
+
+    // Only worth showing once the API actually returns pricing; every vehicle
+    // currently comes back with `pricing: null`, which made this read "NaN".
+    const stockValue = formatStockValue(selectedCategoryVehicles);
+
+    if (stockValue) {
+      tiles.push({ value: stockValue, label: 'Stock value', tone: 'primary' });
+    }
+
+    return tiles;
+  }, [selectedCategoryVehicles]);
 
   const filteredVehicles = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
 
-    return selectedCategoryVehicles.filter((vehicle) => {
-      const matchesStatus = selectedStatus === 'All' || vehicle.status === selectedStatus;
-      const searchableText = [
-        vehicle.name,
-        vehicle.registration,
-        vehicle.meta,
-        vehicle.price,
-        vehicle.status,
-        vehicle.note,
-      ]
-        .join(' ')
-        .toLowerCase();
-      const matchesSearch = query.length === 0 || searchableText.includes(query);
+    if (query.length === 0) {
+      return selectedCategoryVehicles;
+    }
 
-      return matchesStatus && matchesSearch;
-    });
-  }, [searchQuery, selectedCategoryVehicles, selectedStatus]);
+    return selectedCategoryVehicles.filter((vehicle) =>
+      [vehicle.name, vehicle.registration, vehicle.meta, vehicle.status]
+        .join(' ')
+        .toLowerCase()
+        .includes(query)
+    );
+  }, [searchQuery, selectedCategoryVehicles]);
 
   const openVehicle = useCallback(
     (id: string) => router.push({ pathname: '/vehicle/[id]', params: { id } }),
@@ -190,12 +180,6 @@ export function VehiclesScreen() {
           tabs={categoryTabs}
           selectedCategory={selectedCategory}
           onSelect={setSelectedCategory}
-        />
-        <VehicleStatusChips
-          filters={vehicleStatusFilters}
-          selectedFilter={selectedStatus}
-          counts={statusCounts}
-          onSelect={setSelectedStatus}
         />
         <VehicleStatsRow stats={stats} />
       </View>
@@ -251,8 +235,13 @@ function ItemSeparator() {
   return <View style={styles.separator} />;
 }
 
+/** Returns '' when no vehicle has pricing yet, so the tile is hidden rather than showing NaN. */
 function formatStockValue(vehicles: VehicleItem[]) {
   const totalRupees = vehicles.reduce((sum, vehicle) => sum + parsePrice(vehicle.price), 0);
+
+  if (totalRupees <= 0) {
+    return '';
+  }
 
   if (totalRupees >= 100000) {
     return `₹${(totalRupees / 100000).toFixed(1).replace('.0', '')}L`;
@@ -263,6 +252,11 @@ function formatStockValue(vehicles: VehicleItem[]) {
 
 function parsePrice(price: string) {
   const amount = Number(price.replace(/[₹LK]/g, ''));
+
+  // `pricing: null` from the API formats as an em dash, which is not a number.
+  if (!Number.isFinite(amount)) {
+    return 0;
+  }
 
   if (price.includes('L')) {
     return amount * 100000;
