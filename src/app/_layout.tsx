@@ -4,6 +4,7 @@ import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { DevApiErrorReporter } from '@/components/dev/DevApiErrorReporter';
 import { AppAlertProvider } from '@/components/ui';
 import { useNavigationTheme } from '@/hooks/useNavigationTheme';
@@ -49,13 +50,15 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <ThemeProvider value={navigationTheme}>
-        <AppAlertProvider>
-          <StatusBar style={navigationTheme.isDark ? 'light' : 'dark'} />
-          <RootNavigator />
-          <DevApiErrorReporter />
-        </AppAlertProvider>
-      </ThemeProvider>
+      <KeyboardProvider>
+        <ThemeProvider value={navigationTheme}>
+          <AppAlertProvider>
+            <StatusBar style={navigationTheme.isDark ? 'light' : 'dark'} />
+            <RootNavigator />
+            <DevApiErrorReporter />
+          </AppAlertProvider>
+        </ThemeProvider>
+      </KeyboardProvider>
     </SafeAreaProvider>
   );
 }

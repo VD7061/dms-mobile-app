@@ -11,7 +11,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Typography, Grid } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
-import { listVehicles } from '@/services';
+import { getProfile, listVehicles } from '@/services';
+import { useAuthStore } from '@/store';
 import { categoryToApiGroupKey, mapApiVehicleToItem, type ApiVehicleListing } from './apiMapper';
 import { AddVehicleButton } from './components/AddVehicleButton';
 import { InventoryHeader } from './components/InventoryHeader';
@@ -25,13 +26,23 @@ import { vehicleCategoryTabs, vehicleStatusFilters } from './data';
 import type { VehicleCategory, VehicleItem, VehicleStat, VehicleStatus, VehicleStatusFilter } from './types';
 
 const LISTING_LIMIT = 100;
-const ALL_STATUSES = ['garage', 'inspection', 'ready_for_sale', 'sold'];
 const emptyGroup = { total: 0, page: 1, limit: LISTING_LIMIT, vehicles: [] };
+
+type ShowroomRole = { showroom_id: number; role?: string | null };
+type ProfileData = { showroom_roles?: ShowroomRole[] | null };
+
+function getPrimaryShowroomId(profile: ProfileData | null) {
+  const roles = profile?.showroom_roles ?? [];
+  const owned = roles.find((role) => role.role === 'owner');
+  return (owned ?? roles[0])?.showroom_id;
+}
 
 export function VehiclesScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const { width: screenWidth } = useWindowDimensions();
+  const primaryShowroomId = useAuthStore((s) => s.primaryShowroomId);
+  const setPrimaryShowroomId = useAuthStore((s) => s.setPrimaryShowroomId);
   const [selectedCategory, setSelectedCategory] = useState<VehicleCategory>('Cars');
   const [selectedStatus, setSelectedStatus] = useState<VehicleStatusFilter>('All');
   const [searchQuery, setSearchQuery] = useState('');
@@ -47,13 +58,37 @@ export function VehiclesScreen() {
       setIsLoading(true);
       setErrorMessage('');
 
-      listVehicles()
+      const resolveShowroomId = primaryShowroomId
+        ? Promise.resolve(primaryShowroomId)
+        : getProfile().then((profileResponse) => {
+            const profileData =
+              (profileResponse as unknown as { data?: ProfileData })?.data ??
+              (profileResponse as unknown as ProfileData);
+            const resolvedId = getPrimaryShowroomId(profileData);
+
+            if (resolvedId) {
+              setPrimaryShowroomId(resolvedId);
+            }
+
+            return resolvedId;
+          });
+
+      resolveShowroomId
+        .then((showroomId) => {
+          if (!showroomId) {
+            throw new Error('No showroom found for this account yet.');
+          }
+
+          return listVehicles({ showroomId, limit: LISTING_LIMIT });
+        })
         .then((response) => {
           if (cancelled) {
             return;
           }
 
-          console.log('Vehicle listing response', response);
+          if (__DEV__) {
+            console.log('Vehicle listing response', response);
+          }
 
           const responseData = response as unknown as { data?: ApiVehicleListing };
           const data = responseData?.data ?? (responseData as unknown as ApiVehicleListing);
@@ -73,7 +108,7 @@ export function VehiclesScreen() {
       return () => {
         cancelled = true;
       };
-    }, [])
+    }, [primaryShowroomId, setPrimaryShowroomId])
   );
 
   const groups = listing ?? { cars: emptyGroup, bikes: emptyGroup, scooties: emptyGroup };

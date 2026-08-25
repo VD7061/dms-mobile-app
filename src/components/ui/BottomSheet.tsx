@@ -1,15 +1,14 @@
 import type { ReactNode } from 'react';
 import {
   Keyboard,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   StyleSheet,
   View,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/useTheme';
 import { Grid } from '@/constants/theme';
@@ -38,8 +37,8 @@ export function BottomSheet({ visible, onClose, children, style }: BottomSheetPr
       onRequestClose={handleClose}>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}>
+        behavior="padding"
+        keyboardVerticalOffset={8}>
         <View style={styles.overlay}>
           <Pressable style={styles.backdrop} onPress={handleClose} />
           <View

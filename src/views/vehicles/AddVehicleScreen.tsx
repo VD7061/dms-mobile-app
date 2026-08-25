@@ -1,19 +1,19 @@
 import { useState } from 'react';
 import {
   Keyboard,
-  KeyboardAvoidingView,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { BackButton, Button, ShowroomPickerModal, type ShowroomRole } from '@/components/ui';
 import { Grid, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
-import { assignShowroom, createVehicle, getProfile } from '@/services';
+import { assignShowroom, createVehicle, getProfile, uploadVehicleImage } from '@/services';
+import { useAuthStore } from '@/store';
 import {
   FieldLabel,
   FormTextInput,
@@ -106,6 +106,7 @@ function isFormComplete(form: VehicleForm) {
 export function AddVehicleScreen() {
   const router = useRouter();
   const { colors } = useTheme();
+  const setPrimaryShowroomId = useAuthStore((s) => s.setPrimaryShowroomId);
   const [form, setForm] = useState<VehicleForm>(() => createDefaultForm());
   const [photos, setPhotos] = useState<VehiclePhoto[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -123,6 +124,17 @@ export function AddVehicleScreen() {
 
     try {
       await assignShowroom({ vehicleId, showroomId: showroom.showroom_id });
+
+      if (photos.length > 0) {
+        const uploadResults = await Promise.allSettled(
+          photos.map((photo) => uploadVehicleImage({ vehicleId, label: 'exterior', photo }))
+        );
+
+        if (__DEV__) {
+          console.log('Vehicle photo upload results', uploadResults);
+        }
+      }
+
       setPendingVehicleId(null);
       setShowroomOptions([]);
       router.back();
@@ -141,7 +153,9 @@ export function AddVehicleScreen() {
       (profileResponse as unknown as { data?: ProfileData })?.data ??
       (profileResponse as unknown as ProfileData);
 
-    console.log('Profile showroom_roles for assignment', profileData?.showroom_roles);
+    if (__DEV__) {
+      console.log('Profile showroom_roles for assignment', profileData?.showroom_roles);
+    }
 
     const showrooms = dedupeShowrooms(profileData?.showroom_roles ?? []);
 
@@ -150,6 +164,7 @@ export function AddVehicleScreen() {
     }
 
     if (showrooms.length === 1) {
+      setPrimaryShowroomId(showrooms[0].showroom_id);
       await completeAssignment(vehicleId, showrooms[0]);
       return;
     }
@@ -192,8 +207,8 @@ export function AddVehicleScreen() {
       edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}>
+        behavior="padding"
+        keyboardVerticalOffset={8}>
         <View style={[styles.header, { paddingHorizontal: Grid.columns.margin }]}>
           <BackButton />
         </View>

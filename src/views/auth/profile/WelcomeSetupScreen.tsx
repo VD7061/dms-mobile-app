@@ -2,8 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Image,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,6 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -108,6 +107,7 @@ export function WelcomeSetupScreen() {
   const setCanEnterApp = useAuthStore((s) => s.setCanEnterApp);
   const setFullName = useAuthStore((s) => s.setFullName);
   const setProfileContact = useAuthStore((s) => s.setProfileContact);
+  const setPrimaryShowroomId = useAuthStore((s) => s.setPrimaryShowroomId);
   const startsAtVehicle = params.step === 'vehicle';
   const [step, setStep] = useState<SetupStep>(startsAtVehicle ? 'vehicle' : 'welcome');
   const [showroomComplete, setShowroomComplete] = useState(startsAtVehicle);
@@ -370,15 +370,20 @@ export function WelcomeSetupScreen() {
       });
       const responseBody = getApiResponseBody(response);
 
-      console.log('Assign vehicle showroom response', responseBody);
+      if (__DEV__) {
+        console.log('Assign vehicle showroom response', responseBody);
+      }
 
+      setPrimaryShowroomId(showroom.showroom_id);
       setPendingVehicleId(null);
       setShowroomOptions([]);
       setVehicleComplete(true);
       setCanEnterApp(false);
       setStep('done');
     } catch (error) {
-      console.log('Assign vehicle showroom error', error);
+      if (__DEV__) {
+        console.log('Assign vehicle showroom error', error);
+      }
       showApiAlertInProduction(
         'Vehicle assignment failed',
         error,
@@ -390,7 +395,9 @@ export function WelcomeSetupScreen() {
   };
 
   const resolveShowroomAssignment = async (vehicleId: number, profile: ProfileData) => {
-    console.log('Profile showroom_roles for assignment', profile.showroom_roles);
+    if (__DEV__) {
+      console.log('Profile showroom_roles for assignment', profile.showroom_roles);
+    }
 
     const showrooms = getAssignableShowrooms(profile);
 
@@ -437,7 +444,9 @@ export function WelcomeSetupScreen() {
       });
       const responseBody = getApiResponseBody(response);
 
-      console.log('Create showroom response', responseBody);
+      if (__DEV__) {
+        console.log('Create showroom response', responseBody);
+      }
 
       setShowroomComplete(true);
       setIsCheckingNextStep(true);
@@ -465,12 +474,16 @@ export function WelcomeSetupScreen() {
     setIsCreatingVehicle(true);
 
     try {
-      console.log('Create vehicle form', vehicleForm);
+      if (__DEV__) {
+        console.log('Create vehicle form', vehicleForm);
+      }
 
       const response = await createVehicle(vehicleForm);
       const responseBody = getApiResponseBody(response);
 
-      console.log('Create vehicle response', responseBody);
+      if (__DEV__) {
+        console.log('Create vehicle response', responseBody);
+      }
 
       const vehicleId = getCreatedVehicleId(responseBody);
 
@@ -484,7 +497,9 @@ export function WelcomeSetupScreen() {
       const profile = await fetchProfileForNextStep();
       await resolveShowroomAssignment(vehicleId, profile);
     } catch (error) {
-      console.log('Create vehicle error', error);
+      if (__DEV__) {
+        console.log('Create vehicle error', error);
+      }
       showApiAlertInProduction('Vehicle create failed', error, 'Unable to create vehicle.');
     } finally {
       setIsCreatingVehicle(false);
@@ -524,8 +539,8 @@ export function WelcomeSetupScreen() {
       edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}>
+        behavior="padding"
+        keyboardVerticalOffset={8}>
         <View style={styles.content}>
           <StepTabs activeTab={activeTab} showroomComplete={showroomComplete} vehicleComplete={vehicleComplete} />
 

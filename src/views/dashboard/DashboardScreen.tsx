@@ -75,13 +75,17 @@ export function DashboardScreen() {
         });
         const data = (response as unknown as DashboardResponse).data;
 
-        console.log('Dashboard response', response);
+        if (__DEV__) {
+          console.log('Dashboard response', response);
+        }
 
         if (!cancelled && data) {
           setDashboardData(data);
         }
       } catch (error) {
-        console.log('Dashboard load failed', error);
+        if (__DEV__) {
+          console.log('Dashboard load failed', error);
+        }
       } finally {
         if (!cancelled) {
           setIsDashboardLoading(false);

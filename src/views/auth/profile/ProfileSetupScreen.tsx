@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -44,8 +45,8 @@ export function ProfileSetupScreen() {
       edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}>
+        behavior="padding"
+        keyboardVerticalOffset={8}>
         <View style={styles.content}>
           <View style={styles.header}>
             <Text style={[Typography.hero, styles.title, { color: colors['on-background'] }]}>

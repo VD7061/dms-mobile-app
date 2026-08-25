@@ -14,14 +14,20 @@ export const listVehiclesApi = {
   path: listVehiclesEndpoint,
   auth: 'protected',
   description:
-    'List vehicles grouped by category (cars, bikes, scooties). Supports filtering by status, type, and price range with pagination.',
+    'List vehicles in a showroom grouped by category (cars, bikes, scooties). Requires showroom_id; caller must be a member of that showroom. Defaults to all statuses. Supports filtering by status, type, and price range with pagination.',
   queryParams: [
     {
+      name: 'showroom_id',
+      example: '1',
+      required: true,
+      description: 'Required: numeric showroom ID. Caller must be a member of this showroom.',
+    },
+    {
       name: 'status',
-      example: 'ready_for_sale',
+      example: '',
       required: false,
       description:
-        'Filter by status (repeatable). Values: garage, inspection, ready_for_sale, sold. Default: ready_for_sale',
+        'Filter by status (repeatable). Values: garage, inspection, ready_for_sale, sold. Default: all statuses',
     },
     {
       name: 'type',
@@ -54,7 +60,7 @@ export const listVehiclesApi = {
       description: 'Items per page (1–100)',
     },
   ],
-  curlExample: `curl --location -g '{{base_url}}/api/v1/vehicle/listing?status=ready_for_sale&page=1&limit=20' \\
+  curlExample: `curl --location -g '{{base_url}}/api/v1/vehicle/listing?showroom_id=1&page=1&limit=20' \\
 --header 'Authorization: Bearer <accessToken>'`,
   successResponseExample: {
     status: 200,

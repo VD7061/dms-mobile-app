@@ -37,6 +37,7 @@ function themePreferenceLabel(preference: ThemePreference) {
 export default function AccountTab() {
   const { colors } = useTheme();
   const fullName = useAuthStore((s) => s.fullName);
+  const setPrimaryShowroomId = useAuthStore((s) => s.setPrimaryShowroomId);
   const { isLoggingOut, logout } = useLogout();
   const themePreference = useThemeStore((s) => s.themePreference);
   const setThemePreference = useThemeStore((s) => s.setThemePreference);
@@ -63,6 +64,8 @@ export default function AccountTab() {
         const primaryShowroom = getPrimaryShowroom(data ?? null);
 
         if (primaryShowroom) {
+          setPrimaryShowroomId(primaryShowroom.showroom_id);
+
           listMembers({ showroomId: primaryShowroom.showroom_id })
             .then((membersResponse) => {
               if (cancelled) {

@@ -9,11 +9,13 @@ interface AuthState {
   countryCode: string;
   phoneNumber: string;
   canEnterApp: boolean;
+  primaryShowroomId: number | null;
   setHasSeenOnboarding: (seen: boolean) => void;
   setIsLoggedIn: (loggedIn: boolean) => void;
   setCanEnterApp: (canEnter: boolean) => void;
   setFullName: (name: string) => void;
   setProfileContact: (contact: { countryCode?: string; phoneNumber?: string }) => void;
+  setPrimaryShowroomId: (showroomId: number | null) => void;
   completeProfile: (name: string) => void;
   logout: () => void;
 }
@@ -27,6 +29,7 @@ export const useAuthStore = create<AuthState>()(
       countryCode: '',
       phoneNumber: '',
       canEnterApp: false,
+      primaryShowroomId: null,
       setHasSeenOnboarding: (seen) => set({ hasSeenOnboarding: seen }),
       setIsLoggedIn: (loggedIn) => set({ isLoggedIn: loggedIn }),
       setCanEnterApp: (canEnter) => set({ canEnterApp: canEnter }),
@@ -36,6 +39,7 @@ export const useAuthStore = create<AuthState>()(
           countryCode: countryCode ?? state.countryCode,
           phoneNumber: phoneNumber ?? state.phoneNumber,
         })),
+      setPrimaryShowroomId: (showroomId) => set({ primaryShowroomId: showroomId }),
       completeProfile: (name) => set({ fullName: name, isLoggedIn: true }),
       logout: () =>
         set({
@@ -44,6 +48,7 @@ export const useAuthStore = create<AuthState>()(
           fullName: '',
           countryCode: '',
           phoneNumber: '',
+          primaryShowroomId: null,
         }),
     }),
     {
@@ -55,6 +60,7 @@ export const useAuthStore = create<AuthState>()(
         fullName: state.fullName,
         countryCode: state.countryCode,
         phoneNumber: state.phoneNumber,
+        primaryShowroomId: state.primaryShowroomId,
       }),
     }
   )

@@ -19,7 +19,9 @@ export function useLogout() {
       await logoutRequest();
     } catch (error) {
       // Local logout must still complete if the server/session is already unavailable.
-      console.log('Logout API failed; clearing local session anyway.', error);
+      if (__DEV__) {
+        console.log('Logout API failed; clearing local session anyway.', error);
+      }
     }
 
     await clearTokens();
