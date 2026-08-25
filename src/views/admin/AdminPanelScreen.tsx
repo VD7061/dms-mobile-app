@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { Grid, Typography } from '@/constants/theme';
@@ -15,6 +16,7 @@ type DashboardData = {
 };
 
 export function AdminPanelScreen() {
+  const router = useRouter();
   const { colors } = useTheme();
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [employeeCount, setEmployeeCount] = useState<number | null>(null);
@@ -80,13 +82,15 @@ export function AdminPanelScreen() {
         </View>
 
         {/* Action Card */}
-        <AdminActionCard
-          icon="people-outline"
-          title="Manage Employees"
-          subtitle="Sales staff access & Permissions"
-          count={employeeCount ?? 0}
-          loading={isLoading}
-        />
+        <Pressable onPress={() => router.push('/employees')}>
+          <AdminActionCard
+            icon="people-outline"
+            title="Manage Employees"
+            subtitle="Sales staff access & Permissions"
+            count={employeeCount ?? 0}
+            loading={isLoading}
+          />
+        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );

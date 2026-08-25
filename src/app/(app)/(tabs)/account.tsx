@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { FontFamily, Grid, Typography } from '@/constants/theme';
@@ -35,6 +36,7 @@ function themePreferenceLabel(preference: ThemePreference) {
 }
 
 export default function AccountTab() {
+  const router = useRouter();
   const { colors } = useTheme();
   const fullName = useAuthStore((s) => s.fullName);
   const setPrimaryShowroomId = useAuthStore((s) => s.setPrimaryShowroomId);
@@ -136,6 +138,7 @@ export default function AccountTab() {
                 </View>
               ) : undefined
             }
+            onPress={() => router.push('/employees')}
           />
           <SettingsRow
             icon="storefront-outline"
