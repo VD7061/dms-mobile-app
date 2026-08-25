@@ -2,16 +2,26 @@ import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
+import { SkeletonBox } from '@/components/ui';
 
 type VehicleSearchBarProps = {
   value: string;
   onChangeText: (value: string) => void;
+  loading?: boolean;
 };
 
-export function VehicleSearchBar({ value, onChangeText }: VehicleSearchBarProps) {
+export function VehicleSearchBar({ value, onChangeText, loading = false }: VehicleSearchBarProps) {
   const { colors, isDark } = useTheme();
   const searchBgColor = isDark ? colors['surface-container-high'] : colors['surface-container-lowest'];
   const borderColor = isDark ? 'transparent' : colors['outline-variant'];
+
+  if (loading) {
+    return (
+      <View style={[styles.searchBox, { backgroundColor: searchBgColor, borderColor, borderWidth: isDark ? 0 : 1 }]}>
+        <SkeletonBox width="100%" height={22} borderRadius={8} />
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.searchBox, { backgroundColor: searchBgColor, borderColor, borderWidth: isDark ? 0 : 1 }]}>

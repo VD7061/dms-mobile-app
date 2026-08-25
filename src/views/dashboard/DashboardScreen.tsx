@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/useTheme';
@@ -6,6 +6,7 @@ import { Grid } from '@/constants/theme';
 import { getDashboard } from '@/services';
 import { useAuthStore } from '@/store';
 import { resolvePrimaryShowroomId } from '@/utils/showroom';
+import { useTabDataFetch } from '@/hooks/useTabDataFetch';
 import { ScreenTopArea } from '@/components/ui';
 import { MetricCard } from './components/MetricCard';
 import { MetricGrid } from './components/MetricGrid';
@@ -53,7 +54,6 @@ export function DashboardScreen() {
   const fullName = useAuthStore((s) => s.fullName);
   const [selectedRange, setSelectedRange] = useState<TimeRange>('1W');
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
-  const [isDashboardLoading, setIsDashboardLoading] = useState(true);
   const firstName = fullName.trim().split(' ')[0] || 'Stevie';
   const horizontalPadding = screenWidth < 360 ? 16 : Grid.columns.margin;
   const cardGap = screenWidth < 360 ? 12 : Grid.columns.gutter;
@@ -64,49 +64,26 @@ export function DashboardScreen() {
     [dashboardData]
   );
 
-  useEffect(() => {
-    let cancelled = false;
+  const { isLoading: isDashboardLoading } = useTabDataFetch({
+    onFocus: async () => {
+      const showroomId = await resolvePrimaryShowroomId();
 
-    async function loadDashboard() {
-      setIsDashboardLoading(true);
+      const response = await getDashboard({
+        duration: toDashboardDuration(selectedRange),
+        showroomId,
+      });
+      const data = (response as unknown as DashboardResponse).data;
 
-      try {
-        const showroomId = await resolvePrimaryShowroomId();
-
-        if (cancelled) {
-          return;
-        }
-
-        const response = await getDashboard({
-          duration: toDashboardDuration(selectedRange),
-          showroomId,
-        });
-        const data = (response as unknown as DashboardResponse).data;
-
-        if (__DEV__) {
-          console.log('Dashboard response', response);
-        }
-
-        if (!cancelled && data) {
-          setDashboardData(data);
-        }
-      } catch (error) {
-        if (__DEV__) {
-          console.log('Dashboard load failed', error);
-        }
-      } finally {
-        if (!cancelled) {
-          setIsDashboardLoading(false);
-        }
+      if (__DEV__) {
+        console.log('Dashboard response', response);
       }
-    }
 
-    loadDashboard();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedRange]);
+      if (data) {
+        setDashboardData(data);
+      }
+    },
+    dependencies: [selectedRange],
+  });
 
   return (
     <SafeAreaView

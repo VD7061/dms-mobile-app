@@ -1,5 +1,5 @@
-import { TabScreen } from '@/components/ui/TabScreen';
+import { AdminPanelScreen } from '@/views/admin';
 
 export default function TagsTab() {
-  return <TabScreen title="Tags" subtitle="Organize vehicle records" />;
+  return <AdminPanelScreen />;
 }

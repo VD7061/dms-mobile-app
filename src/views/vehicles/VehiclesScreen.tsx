@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
+import { useTabDataFetch } from '@/hooks/useTabDataFetch';
 import {
-  ActivityIndicator,
   FlatList,
   StyleSheet,
   Text,
@@ -17,6 +17,7 @@ import { categoryToApiGroupKey, mapApiVehicleToItem, type ApiVehicleListing } fr
 import { InventoryHeader } from './components/InventoryHeader';
 import { VehicleCard } from './components/VehicleCard';
 import { VehicleCardCompact } from './components/VehicleCardCompact';
+import { VehicleCardSkeleton, VehicleCardCompactSkeleton } from './components/VehicleCardSkeleton';
 import { VehicleCategoryTabs } from './components/VehicleCategoryTabs';
 import { VehicleSearchBar } from './components/VehicleSearchBar';
 import type { VehicleCategory, VehicleFilter, VehicleItem } from './types';
@@ -46,16 +47,12 @@ export function VehiclesScreen() {
   const [selectedFilter, setSelectedFilter] = useState<VehicleFilter>('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [listing, setListing] = useState<ApiVehicleListing | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('compact');
   const horizontalPadding = screenWidth < 360 ? 16 : Grid.columns.margin;
 
-  useFocusEffect(
-    useCallback(() => {
-      let cancelled = false;
-
-      setIsLoading(true);
+  const { isLoading } = useTabDataFetch({
+    onFocus: async () => {
       setErrorMessage('');
 
       const knownShowroomId = primaryShowroomIdRef.current;
@@ -75,39 +72,21 @@ export function VehiclesScreen() {
             return resolvedId;
           });
 
-      resolveShowroomId
-        .then((showroomId) => {
-          if (!showroomId) {
-            throw new Error('No showroom found for this account yet.');
-          }
+      try {
+        const showroomId = await resolveShowroomId;
+        if (!showroomId) {
+          throw new Error('No showroom found for this account yet.');
+        }
 
-          return listVehicles({ showroomId, limit: LISTING_LIMIT });
-        })
-        .then((response) => {
-          if (cancelled) {
-            return;
-          }
-
-          const responseData = response as unknown as { data?: ApiVehicleListing };
-          const data = responseData?.data ?? (responseData as unknown as ApiVehicleListing);
-          setListing(data ?? null);
-        })
-        .catch((error) => {
-          if (!cancelled) {
-            setErrorMessage(error instanceof Error ? error.message : 'Unable to load vehicles.');
-          }
-        })
-        .finally(() => {
-          if (!cancelled) {
-            setIsLoading(false);
-          }
-        });
-
-      return () => {
-        cancelled = true;
-      };
-    }, [])
-  );
+        const response = await listVehicles({ showroomId, limit: LISTING_LIMIT });
+        const responseData = response as unknown as { data?: ApiVehicleListing };
+        const data = responseData?.data ?? (responseData as unknown as ApiVehicleListing);
+        setListing(data ?? null);
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : 'Unable to load vehicles.');
+      }
+    },
+  });
 
   const groups = listing ?? { cars: emptyGroup, bikes: emptyGroup, scooties: emptyGroup };
   const totalVehicleCount = groups.cars.total + groups.bikes.total + groups.scooties.total;
@@ -174,11 +153,12 @@ export function VehiclesScreen() {
           viewMode={viewMode}
           onViewModeChange={setViewMode}
         />
-        <VehicleSearchBar value={searchQuery} onChangeText={setSearchQuery} />
+        <VehicleSearchBar value={searchQuery} onChangeText={setSearchQuery} loading={isLoading} />
         <VehicleCategoryTabs
           tabs={categoryTabs}
           selectedCategory={selectedFilter === 'All' ? undefined : (selectedFilter as VehicleCategory)}
           onSelect={setSelectedFilter}
+          loading={isLoading}
         />
       </View>
 
@@ -188,28 +168,33 @@ export function VehiclesScreen() {
         </Text>
       ) : null}
 
-      {isLoading && !listing ? (
-        <View style={styles.loading}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      ) : (
-        <FlatList
-          style={styles.scroll}
-          data={filteredVehicles}
-          keyExtractor={keyExtractor}
-          renderItem={renderVehicle}
-          ListHeaderComponent={null}
-          contentContainerStyle={[styles.content, { paddingHorizontal: horizontalPadding }]}
-          ItemSeparatorComponent={() => (
-            <View style={{ height: viewMode === 'compact' ? 8 : 12 }} />
-          )}
-          showsVerticalScrollIndicator={false}
-          initialNumToRender={8}
-          maxToRenderPerBatch={8}
-          windowSize={7}
-          removeClippedSubviews
-        />
-      )}
+      <FlatList
+        style={styles.scroll}
+        data={isLoading ? Array(8).fill(null) : filteredVehicles}
+        keyExtractor={(item, index) => (item ? keyExtractor(item) : `skeleton-${index}`)}
+        renderItem={({ item }) =>
+          isLoading ? (
+            viewMode === 'compact' ? (
+              <VehicleCardCompactSkeleton />
+            ) : (
+              <VehicleCardSkeleton />
+            )
+          ) : (
+            renderVehicle({ item: item as VehicleItem })
+          )
+        }
+        ListHeaderComponent={null}
+        contentContainerStyle={[styles.content, { paddingHorizontal: horizontalPadding }]}
+        ItemSeparatorComponent={() => (
+          <View style={{ height: viewMode === 'compact' ? 8 : 12 }} />
+        )}
+        showsVerticalScrollIndicator={false}
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={7}
+        removeClippedSubviews
+        scrollEnabled={!isLoading}
+      />
 
     </SafeAreaView>
   );
@@ -232,11 +217,6 @@ const styles = StyleSheet.create({
   content: {
     paddingTop: 20,
     paddingBottom: 24,
-  },
-  loading: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   errorText: {
     ...Typography.caption,
