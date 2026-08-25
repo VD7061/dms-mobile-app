@@ -2,12 +2,19 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
-import type { VehicleCategory, VehicleCategoryTab } from '../types';
+import type { VehicleCategory, VehicleCategoryTab, VehicleFilter } from '../types';
+
+type CategoryTab = {
+  value: VehicleFilter;
+  label: string;
+  count: number;
+  icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+};
 
 type VehicleCategoryTabsProps = {
-  tabs: VehicleCategoryTab[];
-  selectedCategory: VehicleCategory;
-  onSelect: (category: VehicleCategory) => void;
+  tabs: readonly CategoryTab[];
+  selectedCategory?: VehicleCategory | null;
+  onSelect: (category: VehicleFilter) => void;
 };
 
 export function VehicleCategoryTabs({ tabs, selectedCategory, onSelect }: VehicleCategoryTabsProps) {
@@ -18,7 +25,8 @@ export function VehicleCategoryTabs({ tabs, selectedCategory, onSelect }: Vehicl
   return (
     <View style={styles.categoryTabs}>
       {tabs.map((tab, index) => {
-        const active = selectedCategory === tab.value;
+        const active =
+          tab.value === 'All' ? !selectedCategory : selectedCategory === tab.value;
 
         return (
           <Pressable
@@ -62,25 +70,32 @@ const styles = StyleSheet.create({
   categoryTabs: {
     flexDirection: 'row',
     overflow: 'hidden',
-    borderRadius: 15,
-    marginTop: 18,
+    borderRadius: 16,
+    marginTop: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
   },
   categoryTab: {
     flex: 1,
-    height: 66,
+    height: 72,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 3,
   },
   categoryLabel: {
     ...Typography.body,
     fontFamily: Typography.screenTitle.fontFamily,
-    fontSize: 13,
-    lineHeight: 15,
-    marginTop: 3,
+    fontSize: 14,
+    lineHeight: 16,
+    fontWeight: '600',
   },
   categoryCount: {
     ...Typography.caption,
-    fontSize: 10,
-    lineHeight: 12,
+    fontSize: 11,
+    lineHeight: 13,
+    fontWeight: '500',
   },
 });

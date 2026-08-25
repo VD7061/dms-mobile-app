@@ -1,13 +1,23 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 
+type ViewMode = 'card' | 'compact';
+
 type InventoryHeaderProps = {
   totalCount: number;
+  onAddPress?: () => void;
+  viewMode?: ViewMode;
+  onViewModeChange?: (mode: ViewMode) => void;
 };
 
-export function InventoryHeader({ totalCount }: InventoryHeaderProps) {
+export function InventoryHeader({
+  totalCount,
+  onAddPress,
+  viewMode = 'card',
+  onViewModeChange,
+}: InventoryHeaderProps) {
   const { colors, isDark } = useTheme();
   const actionBackground = isDark ? colors['surface-container'] : colors['surface-container-high'];
 
@@ -21,16 +31,26 @@ export function InventoryHeader({ totalCount }: InventoryHeaderProps) {
       </View>
 
       <View style={styles.actions}>
-        <View style={[styles.actionButton, { backgroundColor: actionBackground }]}>
+        <Pressable
+          onPress={() => onViewModeChange?.(viewMode === 'card' ? 'compact' : 'card')}
+          style={({ pressed }) => [
+            styles.actionButton,
+            { backgroundColor: colors.secondary, opacity: pressed ? 0.85 : 1 },
+          ]}>
           <MaterialCommunityIcons
-            name="sort-ascending"
+            name={viewMode === 'card' ? 'view-module' : 'format-list-bulleted'}
             size={24}
-            color={colors['on-surface']}
+            color={colors['on-secondary']}
           />
-        </View>
-        <View style={[styles.actionButton, { backgroundColor: actionBackground }]}>
-          <Ionicons name="ellipsis-vertical" size={22} color={colors['on-surface']} />
-        </View>
+        </Pressable>
+        <Pressable
+          onPress={onAddPress}
+          style={({ pressed }) => [
+            styles.actionButton,
+            { backgroundColor: actionBackground, opacity: pressed ? 0.85 : 1 },
+          ]}>
+          <Ionicons name="add" size={28} color={colors.primary} />
+        </Pressable>
       </View>
     </View>
   );
@@ -55,7 +75,7 @@ const styles = StyleSheet.create({
   },
   actions: {
     flexDirection: 'row',
-    gap: 14,
+    gap: 12,
   },
   actionButton: {
     width: 50,
@@ -63,5 +83,18 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  badge: {
+    position: 'absolute',
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    top: 8,
+    right: 8,
   },
 });

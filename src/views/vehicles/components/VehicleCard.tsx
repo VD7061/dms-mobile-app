@@ -24,50 +24,63 @@ function VehicleCardComponent({ vehicle, onPress }: VehicleCardProps) {
       style={({ pressed }) => [
         styles.card,
         {
-          backgroundColor: colors.background,
+          backgroundColor: colors['surface-container-lowest'],
           borderColor: colors.primary,
-          opacity: pressed ? 0.85 : 1,
+          borderWidth: 1.5,
+          opacity: pressed ? 0.92 : 1,
         },
       ]}>
-      <View style={[styles.thumbnail, { backgroundColor: colors['surface-container-high'] }]}>
+      <View style={[styles.accentBar, { backgroundColor: statusColors.backgroundColor }]} />
+      <View style={[styles.imageWrapper, { backgroundColor: colors['surface-container-high'] }]}>
         {vehicle.imageUrl ? (
           <Image
             source={{ uri: vehicle.imageUrl }}
-            style={styles.thumbnailImage}
+            style={styles.image}
             contentFit="cover"
-            transition={150}
+            contentPosition="center"
+            transition={250}
             cachePolicy="memory-disk"
-            // Keyed by vehicle rather than URL: the API hands back a freshly
-            // signed URL on every listing fetch, and without this the view
-            // would blank out and re-fade each time the list reloads.
             recyclingKey={vehicle.id}
-            placeholderContentFit="contain"
+            placeholder={colors['surface-container']}
+            placeholderContentFit="cover"
           />
         ) : (
-          <MaterialCommunityIcons name={vehicle.icon} size={34} color={colors.primary} />
+          <MaterialCommunityIcons name={vehicle.icon} size={52} color={colors.primary} />
         )}
       </View>
 
-      <View style={styles.content}>
-        <Text style={[styles.name, { color: colors['on-surface'] }]} numberOfLines={1}>
-          {vehicle.name}
-        </Text>
-        <Text style={[styles.registration, { color: colors['on-surface'] }]}>
-          {vehicle.registration}
-        </Text>
-        <Text style={[styles.meta, { color: colors['on-surface-variant'] }]} numberOfLines={1}>
+      <View style={styles.body}>
+        <View style={styles.header}>
+          <View style={styles.titleWrapper}>
+            <Text style={[styles.vehicleName, { color: colors['on-surface'] }]} numberOfLines={1}>
+              {vehicle.name}
+            </Text>
+            <Text style={[styles.plate, { color: colors['on-surface-variant'] }]} numberOfLines={1}>
+              {vehicle.registration}
+            </Text>
+          </View>
+          <View style={[styles.statusBadge, { backgroundColor: statusColors.backgroundColor }]}>
+            <Text style={[styles.statusLabel, { color: statusColors.textColor }]}>
+              {vehicle.status}
+            </Text>
+          </View>
+        </View>
+
+        <Text style={[styles.specs, { color: colors['on-surface-variant'] }]} numberOfLines={1}>
           {vehicle.meta}
         </Text>
-      </View>
 
-      <View style={styles.side}>
-        <Text style={[styles.price, { color: colors['on-surface'] }]}>{vehicle.price}</Text>
-        <View style={[styles.statusPill, { backgroundColor: statusColors.backgroundColor }]}>
-          <Text style={[styles.statusText, { color: statusColors.textColor }]}>
-            {vehicle.status}
-          </Text>
+        <View style={styles.priceRow}>
+          <View>
+            <Text style={[styles.priceCaption, { color: colors['on-surface-variant'] }]}>Buying</Text>
+            <Text style={[styles.priceValue, { color: colors.primary }]}>{vehicle.buyingPrice}</Text>
+          </View>
+          {vehicle.note && (
+            <Text style={[styles.timeIndicator, { color: colors['on-surface-variant'] }]}>
+              {vehicle.note}
+            </Text>
+          )}
         </View>
-        <Text style={[styles.note, { color: colors['on-surface-variant'] }]}>{vehicle.note}</Text>
       </View>
     </Pressable>
   );
@@ -100,73 +113,109 @@ function getStatusColors(status: VehicleStatus, colors: ReturnType<typeof useThe
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 14,
-    borderWidth: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    minHeight: 105,
-    paddingHorizontal: 18,
-    paddingVertical: 15,
+    borderRadius: 20,
+    flexDirection: 'column',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 4,
   },
-  thumbnail: {
-    width: 70,
-    height: 48,
-    borderRadius: 8,
+  accentBar: {
+    width: '100%',
+    height: 4,
+  },
+  imageWrapper: {
+    width: '100%',
+    height: 136,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 14,
     overflow: 'hidden',
   },
-  thumbnailImage: {
+  image: {
     width: '100%',
     height: '100%',
+    backgroundColor: 'transparent',
   },
-  content: {
+  body: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    gap: 14,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  titleWrapper: {
     flex: 1,
     minWidth: 0,
+    gap: 4,
   },
-  name: {
+  vehicleName: {
     ...Typography.screenTitle,
-    fontSize: 14,
-    lineHeight: 17,
-    marginBottom: 3,
+    fontSize: 17,
+    lineHeight: 22,
+    fontWeight: '600',
+    letterSpacing: 0.2,
   },
-  registration: {
-    ...Typography.body,
-    fontFamily: Typography.screenTitle.fontFamily,
+  plate: {
+    fontFamily: 'Courier',
     fontSize: 11,
-    lineHeight: 14,
+    lineHeight: 15,
+    fontWeight: '500',
+    letterSpacing: 0.6,
   },
-  meta: {
-    ...Typography.caption,
-    lineHeight: 14,
-  },
-  side: {
-    alignItems: 'flex-end',
-    marginLeft: 10,
-    minWidth: 72,
-  },
-  price: {
-    ...Typography.screenTitle,
+  specs: {
+    ...Typography.body,
     fontSize: 13,
-    lineHeight: 16,
-    marginBottom: 7,
+    lineHeight: 17,
+    fontWeight: '400',
+    marginTop: 2,
   },
-  statusPill: {
-    borderRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    marginBottom: 4,
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingTop: 4,
   },
-  statusText: {
-    ...Typography.caption,
-    fontFamily: Typography.screenTitle.fontFamily,
+  priceCaption: {
+    fontFamily: Typography.caption.fontFamily,
     fontSize: 10,
     lineHeight: 12,
+    fontWeight: '500',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
   },
-  note: {
-    ...Typography.caption,
-    fontSize: 10,
-    lineHeight: 14,
+  priceValue: {
+    fontSize: 19,
+    lineHeight: 24,
+    fontWeight: '700',
+    letterSpacing: 0.1,
+    marginTop: 3,
+  },
+  statusBadge: {
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    minWidth: 70,
+    alignItems: 'center',
+  },
+  statusLabel: {
+    fontFamily: Typography.caption.fontFamily,
+    fontSize: 11,
+    lineHeight: 13,
+    fontWeight: '500',
+    letterSpacing: 0.1,
+  },
+  timeIndicator: {
+    fontFamily: Typography.caption.fontFamily,
+    fontSize: 11,
+    lineHeight: 13,
+    fontWeight: '400',
+    textAlign: 'right',
   },
 });
