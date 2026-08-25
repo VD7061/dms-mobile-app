@@ -1,10 +1,22 @@
+import { useEffect, useState } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Image } from 'expo-image';
+import { useRouter } from 'expo-router';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BackButton } from '@/components/ui';
 import { FontFamily, Grid, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
-import { vehicleInventory } from './data';
+import { ApiError, getVehicle } from '@/services';
+import { mapApiVehicleDetailToItem, type ApiVehicleDetail } from './apiMapper';
 import type { VehicleDocument, VehicleExpense, VehicleItem, VehicleStatus } from './types';
 
 type VehicleDetailsScreenProps = {
@@ -14,12 +26,71 @@ type VehicleDetailsScreenProps = {
 const PHOTO_CHIP_COUNT = 4;
 
 export function VehicleDetailsScreen({ vehicleId }: VehicleDetailsScreenProps) {
+  const router = useRouter();
   const { colors, isDark } = useTheme();
   const { width: screenWidth } = useWindowDimensions();
   const horizontalPadding = screenWidth < 360 ? 16 : Grid.columns.margin;
-  const vehicle = vehicleInventory.find((item) => item.id === vehicleId);
+  const [vehicle, setVehicle] = useState<VehicleItem | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  if (!vehicle) {
+  useEffect(() => {
+    let cancelled = false;
+
+    setIsLoading(true);
+    setErrorMessage('');
+
+    getVehicle({ vehicleId })
+      .then((response) => {
+        if (cancelled) {
+          return;
+        }
+
+        const responseData = response as unknown as { data?: ApiVehicleDetail };
+        const data = responseData?.data ?? (responseData as unknown as ApiVehicleDetail);
+        setVehicle(mapApiVehicleDetailToItem(data));
+      })
+      .catch((error) => {
+        if (cancelled) {
+          return;
+        }
+
+        const notFound = error instanceof ApiError && error.status === 404;
+        setErrorMessage(
+          notFound
+            ? 'This vehicle may have been removed from inventory.'
+            : error instanceof Error
+              ? error.message
+              : 'Unable to load this vehicle.'
+        );
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [vehicleId]);
+
+  if (isLoading) {
+    return (
+      <SafeAreaView
+        style={[styles.screen, { backgroundColor: colors.background }]}
+        edges={['top', 'bottom']}>
+        <View style={[styles.header, { paddingHorizontal: horizontalPadding }]}>
+          <BackButton />
+        </View>
+        <View style={styles.loading}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!vehicle || errorMessage) {
     return (
       <SafeAreaView
         style={[styles.screen, { backgroundColor: colors.background }]}
@@ -28,7 +99,7 @@ export function VehicleDetailsScreen({ vehicleId }: VehicleDetailsScreenProps) {
           <BackButton />
           <Text style={[styles.title, { color: colors['on-surface'] }]}>Vehicle not found</Text>
           <Text style={[styles.bodyText, { color: colors['on-surface-variant'] }]}>
-            This vehicle may have been removed from inventory.
+            {errorMessage || 'This vehicle may have been removed from inventory.'}
           </Text>
         </View>
       </SafeAreaView>
@@ -47,7 +118,11 @@ export function VehicleDetailsScreen({ vehicleId }: VehicleDetailsScreenProps) {
   const visibleChipCount = Math.min(totalPhotos, PHOTO_CHIP_COUNT);
   const extraPhotos = Math.max(totalPhotos - PHOTO_CHIP_COUNT, 0);
   const actionItems = [
-    { label: 'Edit', icon: 'square-edit-outline' as const },
+    {
+      label: 'Edit',
+      icon: 'square-edit-outline' as const,
+      onPress: () => router.push({ pathname: '/vehicle/edit/[id]', params: { id: vehicle.id } }),
+    },
     { label: 'Change State', icon: 'swap-horizontal' as const },
     { label: 'Sell', icon: 'tag-outline' as const },
     { label: 'Add Expense', icon: 'plus' as const },
@@ -66,7 +141,18 @@ export function VehicleDetailsScreen({ vehicleId }: VehicleDetailsScreenProps) {
         contentContainerStyle={[styles.content, { paddingHorizontal: horizontalPadding }]}
         showsVerticalScrollIndicator={false}>
         <View style={[styles.heroCard, { backgroundColor: heroBackground }]}>
-          <MaterialCommunityIcons name={vehicle.icon} size={96} color={colors['on-surface-variant']} />
+          {vehicle.imageUrl ? (
+            <Image
+              source={{ uri: vehicle.imageUrl }}
+              style={styles.heroImage}
+              contentFit="cover"
+              transition={150}
+              cachePolicy="memory-disk"
+              recyclingKey={vehicle.id}
+            />
+          ) : (
+            <MaterialCommunityIcons name={vehicle.icon} size={96} color={colors['on-surface-variant']} />
+          )}
           <View style={[styles.favoriteButton, { backgroundColor: outlineCardBackground }]}>
             <MaterialCommunityIcons name="heart-outline" size={16} color={colors.primary} />
           </View>
@@ -115,17 +201,20 @@ export function VehicleDetailsScreen({ vehicleId }: VehicleDetailsScreenProps) {
 
         <View style={styles.actionsGrid}>
           {actionItems.map((item) => (
-            <View
+            <Pressable
               key={item.label}
-              style={[
+              onPress={item.onPress}
+              disabled={!item.onPress}
+              style={({ pressed }) => [
                 styles.actionTile,
                 { backgroundColor: outlineCardBackground, borderColor },
+                pressed && item.onPress ? styles.actionTilePressed : null,
               ]}>
               <MaterialCommunityIcons name={item.icon} size={20} color={colors.primary} />
               <Text style={[styles.actionLabel, { color: colors['on-surface'] }]}>
                 {item.label}
               </Text>
-            </View>
+            </Pressable>
           ))}
         </View>
 
@@ -394,6 +483,11 @@ const styles = StyleSheet.create({
   scroll: {
     flex: 1,
   },
+  loading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   content: {
     paddingBottom: 31,
     paddingTop: 17,
@@ -404,6 +498,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
+    overflow: 'hidden',
+  },
+  heroImage: {
+    width: '100%',
+    height: '100%',
   },
   favoriteButton: {
     position: 'absolute',
@@ -515,6 +614,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 4,
+  },
+  actionTilePressed: {
+    opacity: 0.85,
   },
   actionLabel: {
     fontFamily: FontFamily.regular,

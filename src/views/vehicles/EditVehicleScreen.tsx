@@ -1,0 +1,564 @@
+import { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Keyboard,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { BackButton, Button } from '@/components/ui';
+import { Grid, Typography } from '@/constants/theme';
+import { useTheme } from '@/hooks/useTheme';
+import {
+  ApiError,
+  deleteVehicleImage,
+  getVehicle,
+  updateVehicle,
+  updateVehiclePricing,
+  uploadVehicleImage,
+} from '@/services';
+import { collectImagesWithLabels, type ApiVehicleDetail } from './apiMapper';
+import {
+  fuelTypeOptions,
+  transmissionTypeOptions,
+  vehicleTypeOptions,
+  yearOfManufactureOptions,
+} from './data';
+import {
+  FieldLabel,
+  FormTextInput,
+  IconTextInput,
+  SelectField,
+  formFieldStyles,
+} from './components/VehicleFormFields';
+import {
+  VehiclePhotosPicker,
+  type ExistingVehiclePhoto,
+  type VehiclePhoto,
+} from './components/VehiclePhotosPicker';
+
+type EditVehicleScreenProps = {
+  vehicleId: string;
+};
+
+type VehicleForm = {
+  vehicleType: string;
+  fuelType: string;
+  manufacturer: string;
+  model: string;
+  variant: string;
+  color: string;
+  yearOfManufacture: string;
+  usageKm: string;
+  rtoCode: string;
+  registrationState: string;
+  registrationNumber: string;
+  transmissionType: string;
+  buyingPrice: string;
+  askingPrice: string;
+};
+
+function formFromDetail(detail: ApiVehicleDetail): VehicleForm {
+  const basic = detail.basic;
+
+  return {
+    vehicleType: basic.vehicle_type ?? '',
+    fuelType: basic.fuel_type ?? '',
+    manufacturer: basic.manufacturer ?? '',
+    model: basic.model ?? '',
+    variant: basic.variant ?? '',
+    color: basic.color ?? '',
+    yearOfManufacture: basic.year_of_manufacture ? String(basic.year_of_manufacture) : '',
+    usageKm: basic.usage_km !== undefined ? String(basic.usage_km) : '',
+    rtoCode: basic.rto_code ?? '',
+    registrationState: basic.registration_state ?? '',
+    registrationNumber: basic.registration_number ?? '',
+    transmissionType: basic.transmission_type ?? '',
+    buyingPrice:
+      detail.buying_details?.buying_price !== undefined &&
+      detail.buying_details?.buying_price !== null
+        ? String(detail.buying_details.buying_price)
+        : '',
+    askingPrice:
+      detail.pricing?.price_tag !== undefined && detail.pricing?.price_tag !== null
+        ? String(detail.pricing.price_tag)
+        : '',
+  };
+}
+
+function isFormComplete(form: VehicleForm) {
+  return (
+    form.vehicleType.trim().length > 0 &&
+    form.fuelType.trim().length > 0 &&
+    form.manufacturer.trim().length > 0 &&
+    form.model.trim().length > 0 &&
+    form.variant.trim().length > 0 &&
+    form.color.trim().length > 0 &&
+    Number(form.yearOfManufacture) > 1900 &&
+    form.usageKm.trim().length > 0 &&
+    form.rtoCode.trim().length > 1 &&
+    form.registrationState.trim().length > 0 &&
+    form.transmissionType.trim().length > 0
+  );
+}
+
+export function EditVehicleScreen({ vehicleId }: EditVehicleScreenProps) {
+  const router = useRouter();
+  const { colors } = useTheme();
+  const [form, setForm] = useState<VehicleForm | null>(null);
+  const [buyingDate, setBuyingDate] = useState<string | undefined>();
+  const [taggedAt, setTaggedAt] = useState<string | undefined>();
+  const [currency, setCurrency] = useState('inr');
+  const [hasExistingPricing, setHasExistingPricing] = useState(false);
+  const [existingPhotos, setExistingPhotos] = useState<ExistingVehiclePhoto[]>([]);
+  const [newPhotos, setNewPhotos] = useState<VehiclePhoto[]>([]);
+  const [removingPhotoId, setRemovingPhotoId] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    setIsLoading(true);
+    setLoadError('');
+
+    getVehicle({ vehicleId })
+      .then((response) => {
+        if (cancelled) {
+          return;
+        }
+
+        const responseData = response as unknown as { data?: ApiVehicleDetail };
+        const detail = responseData?.data ?? (responseData as unknown as ApiVehicleDetail);
+
+        setForm(formFromDetail(detail));
+        setBuyingDate(detail.buying_details?.buying_date ?? undefined);
+        setTaggedAt(detail.pricing?.tagged_at ?? undefined);
+        setCurrency(detail.pricing?.currency ?? 'inr');
+        setHasExistingPricing(
+          detail.buying_details?.buying_price !== undefined &&
+            detail.buying_details?.buying_price !== null
+        );
+        setExistingPhotos(collectImagesWithLabels(detail.images));
+      })
+      .catch((error) => {
+        if (cancelled) {
+          return;
+        }
+
+        const notFound = error instanceof ApiError && error.status === 404;
+        setLoadError(
+          notFound
+            ? 'This vehicle may have been removed from inventory.'
+            : error instanceof Error
+              ? error.message
+              : 'Unable to load this vehicle.'
+        );
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [vehicleId]);
+
+  const updateField = (field: keyof VehicleForm, value: string) => {
+    setForm((current) => (current ? { ...current, [field]: value } : current));
+  };
+
+  const removeExistingPhoto = async (photo: ExistingVehiclePhoto) => {
+    setRemovingPhotoId(photo.id);
+    setErrorMessage('');
+
+    try {
+      await deleteVehicleImage({ vehicleId, imageId: photo.id });
+      setExistingPhotos((current) => current.filter((item) => item.id !== photo.id));
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Unable to remove photo.');
+    } finally {
+      setRemovingPhotoId(null);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!form || !isFormComplete(form) || isSubmitting) {
+      return;
+    }
+
+    const buyingPriceValue = form.buyingPrice ? Number(form.buyingPrice) : undefined;
+    const priceTagValue = form.askingPrice ? Number(form.askingPrice) : undefined;
+
+    // The pricing endpoint requires buying_price + buying_date together the
+    // first time a vehicle gets priced (no record yet) — asking price alone
+    // isn't enough to create one.
+    if (!hasExistingPricing && priceTagValue !== undefined && buyingPriceValue === undefined) {
+      setErrorMessage('Enter a buying price before setting an asking price.');
+      return;
+    }
+
+    Keyboard.dismiss();
+    setErrorMessage('');
+    setIsSubmitting(true);
+
+    try {
+      const requests = [
+        updateVehicle({
+          vehicleId,
+          vehicleType: form.vehicleType,
+          manufacturer: form.manufacturer,
+          model: form.model,
+          variant: form.variant,
+          color: form.color,
+          yearOfManufacture: form.yearOfManufacture,
+          rtoCode: form.rtoCode,
+          registrationState: form.registrationState,
+          usageKm: form.usageKm,
+          fuelType: form.fuelType,
+          transmissionType: form.transmissionType,
+        }),
+      ];
+
+      // Nothing to send if neither price field has a value and there's no
+      // existing pricing record to update.
+      if (buyingPriceValue !== undefined || priceTagValue !== undefined || hasExistingPricing) {
+        // buying_date is documented as a plain date ("2023-01-10"), unlike
+        // tagged_at which is a full ISO datetime — sending a datetime here
+        // was rejected by the API as an invalid request.
+        const resolvedBuyingDate = buyingDate
+          ? buyingDate.slice(0, 10)
+          : buyingPriceValue !== undefined
+            ? new Date().toISOString().slice(0, 10)
+            : undefined;
+
+        requests.push(
+          updateVehiclePricing({
+            vehicleId,
+            buyingPrice: buyingPriceValue,
+            buyingDate: resolvedBuyingDate,
+            priceTag: priceTagValue,
+            taggedAt: taggedAt ?? (priceTagValue !== undefined ? new Date().toISOString() : undefined),
+            currency,
+            remarks: undefined,
+          })
+        );
+      }
+
+      await Promise.all(requests);
+
+      if (newPhotos.length > 0) {
+        const uploadResults = await Promise.allSettled(
+          newPhotos.map((photo) =>
+            uploadVehicleImage({ vehicleId: Number(vehicleId), label: photo.label, photo })
+          )
+        );
+
+        if (__DEV__) {
+          console.log('Vehicle photo upload results', uploadResults);
+        }
+      }
+
+      router.back();
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Unable to save changes.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={[styles.screen, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+        <View style={[styles.header, { paddingHorizontal: Grid.columns.margin }]}>
+          <BackButton />
+        </View>
+        <View style={styles.loading}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!form || loadError) {
+    return (
+      <SafeAreaView style={[styles.screen, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
+        <View style={[styles.header, { paddingHorizontal: Grid.columns.margin }]}>
+          <BackButton />
+        </View>
+        <View style={[styles.missingContent, { paddingHorizontal: Grid.columns.margin }]}>
+          <Text style={[Typography.title, { color: colors['on-surface'] }]}>Vehicle not found</Text>
+          <Text style={[Typography.body, { color: colors['on-surface-variant'], marginTop: 8 }]}>
+            {loadError || 'This vehicle may have been removed from inventory.'}
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView
+      style={[styles.screen, { backgroundColor: colors.background }]}
+      edges={['top', 'bottom']}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior="padding"
+        keyboardVerticalOffset={8}>
+        <View style={[styles.header, { paddingHorizontal: Grid.columns.margin }]}>
+          <BackButton />
+        </View>
+
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[styles.content, { paddingHorizontal: Grid.columns.margin }]}
+          showsVerticalScrollIndicator={false}>
+          <Text style={[Typography.hero2, styles.title, { color: colors['on-background'] }]}>
+            Edit{'\n'}vehicle
+          </Text>
+          <Text style={[Typography.body, styles.subtitle, { color: colors['on-surface'] }]}>
+            Update inventory details, pricing, and photos.
+          </Text>
+
+          <View style={styles.fieldGroup}>
+            <FieldLabel label="Photos" />
+            <VehiclePhotosPicker
+              photos={newPhotos}
+              onChange={setNewPhotos}
+              existingPhotos={existingPhotos}
+              onRemoveExisting={removeExistingPhoto}
+              removingExistingId={removingPhotoId}
+            />
+          </View>
+
+          <View style={formFieldStyles.formFields}>
+            <View style={formFieldStyles.fieldRow}>
+              <View style={formFieldStyles.fieldColumn}>
+                <FieldLabel label="Vehicle type" />
+                <SelectField
+                  label="Vehicle type"
+                  value={form.vehicleType}
+                  options={vehicleTypeOptions}
+                  onChange={(value) => updateField('vehicleType', value)}
+                  placeholder="Select type"
+                />
+              </View>
+              <View style={formFieldStyles.fieldColumn}>
+                <FieldLabel label="Fuel type" />
+                <SelectField
+                  label="Fuel type"
+                  value={form.fuelType}
+                  options={fuelTypeOptions}
+                  onChange={(value) => updateField('fuelType', value)}
+                  placeholder="Select fuel"
+                />
+              </View>
+            </View>
+
+            <View style={formFieldStyles.fieldRow}>
+              <View style={formFieldStyles.fieldColumn}>
+                <FieldLabel label="Manufacturer" />
+                <FormTextInput
+                  value={form.manufacturer}
+                  onChangeText={(value) => updateField('manufacturer', value)}
+                  placeholder="Suzuki"
+                />
+              </View>
+              <View style={formFieldStyles.fieldColumn}>
+                <FieldLabel label="Model" />
+                <FormTextInput
+                  value={form.model}
+                  onChangeText={(value) => updateField('model', value)}
+                  placeholder="Swift Dzire VXI"
+                />
+              </View>
+            </View>
+
+            <View style={formFieldStyles.fieldRow}>
+              <View style={formFieldStyles.fieldColumn}>
+                <FieldLabel label="Variant" />
+                <FormTextInput
+                  value={form.variant}
+                  onChangeText={(value) => updateField('variant', value)}
+                  placeholder="LE"
+                />
+              </View>
+              <View style={formFieldStyles.fieldColumn}>
+                <FieldLabel label="Color" />
+                <FormTextInput
+                  value={form.color}
+                  onChangeText={(value) => updateField('color', value)}
+                  placeholder="White"
+                />
+              </View>
+            </View>
+
+            <View style={formFieldStyles.fieldRow}>
+              <View style={formFieldStyles.fieldColumn}>
+                <FieldLabel label="Year" />
+                <SelectField
+                  label="Year of manufacture"
+                  value={form.yearOfManufacture}
+                  options={yearOfManufactureOptions}
+                  onChange={(value) => updateField('yearOfManufacture', value)}
+                  placeholder="Select year"
+                />
+              </View>
+              <View style={formFieldStyles.fieldColumn}>
+                <FieldLabel label="Usage KM" />
+                <FormTextInput
+                  value={form.usageKm}
+                  onChangeText={(value) =>
+                    updateField('usageKm', value.replace(/\D/g, '').slice(0, 7))
+                  }
+                  placeholder="50000"
+                  keyboardType="number-pad"
+                />
+              </View>
+            </View>
+
+            <View style={formFieldStyles.fieldRow}>
+              <View style={formFieldStyles.fieldColumn}>
+                <FieldLabel label="RTO code" />
+                <FormTextInput
+                  value={form.rtoCode}
+                  onChangeText={(value) => updateField('rtoCode', value.toUpperCase())}
+                  placeholder="AS-01"
+                  autoCapitalize="characters"
+                />
+              </View>
+              <View style={formFieldStyles.fieldColumn}>
+                <FieldLabel label="Registration State" />
+                <FormTextInput
+                  value={form.registrationState}
+                  onChangeText={(value) => updateField('registrationState', value)}
+                  placeholder="Assam"
+                />
+              </View>
+            </View>
+
+            <View style={formFieldStyles.fieldGroup}>
+              <FieldLabel label="Registration number" />
+              <IconTextInput
+                icon="car-sport-outline"
+                value={form.registrationNumber}
+                editable={false}
+                style={styles.disabledInput}
+              />
+            </View>
+
+            <View style={formFieldStyles.fieldGroup}>
+              <FieldLabel label="Transmission type" />
+              <SelectField
+                label="Transmission type"
+                value={form.transmissionType}
+                options={transmissionTypeOptions}
+                onChange={(value) => updateField('transmissionType', value)}
+                placeholder="Select transmission"
+              />
+            </View>
+
+            <View style={formFieldStyles.fieldRow}>
+              <View style={formFieldStyles.fieldColumn}>
+                <FieldLabel label="Buying price" />
+                <FormTextInput
+                  value={form.buyingPrice}
+                  onChangeText={(value) =>
+                    updateField('buyingPrice', value.replace(/\D/g, ''))
+                  }
+                  placeholder="483000"
+                  keyboardType="number-pad"
+                />
+              </View>
+              <View style={formFieldStyles.fieldColumn}>
+                <FieldLabel label="Asking price" />
+                <FormTextInput
+                  value={form.askingPrice}
+                  onChangeText={(value) =>
+                    updateField('askingPrice', value.replace(/\D/g, ''))
+                  }
+                  placeholder="520000"
+                  keyboardType="number-pad"
+                />
+              </View>
+            </View>
+          </View>
+
+          {errorMessage ? (
+            <Text style={[Typography.caption, styles.errorText, { color: colors.error }]}>
+              {errorMessage}
+            </Text>
+          ) : null}
+
+          <Button
+            label="Save changes"
+            onPress={handleSubmit}
+            disabled={!isFormComplete(form) || isSubmitting}
+            loading={isSubmitting}
+            style={styles.submitButton}
+          />
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
+  flex: {
+    flex: 1,
+  },
+  header: {
+    paddingTop: 8,
+  },
+  scroll: {
+    flex: 1,
+  },
+  loading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  missingContent: {
+    flex: 1,
+    paddingTop: 18,
+  },
+  content: {
+    paddingTop: 17,
+    paddingBottom: 40,
+  },
+  title: {
+    fontSize: 28,
+    lineHeight: 34,
+    marginBottom: 10,
+  },
+  subtitle: {
+    fontSize: 15,
+    lineHeight: 23,
+    marginBottom: 24,
+  },
+  fieldGroup: {
+    gap: 8,
+    marginBottom: 20,
+  },
+  disabledInput: {
+    opacity: 0.5,
+  },
+  errorText: {
+    marginTop: 8,
+    marginBottom: -8,
+    lineHeight: 17,
+  },
+  submitButton: {
+    marginTop: 28,
+  },
+});

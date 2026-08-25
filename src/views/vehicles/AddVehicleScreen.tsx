@@ -15,9 +15,16 @@ import { useTheme } from '@/hooks/useTheme';
 import { assignShowroom, createVehicle, getProfile, uploadVehicleImage } from '@/services';
 import { useAuthStore } from '@/store';
 import {
+  fuelTypeOptions,
+  transmissionTypeOptions,
+  vehicleTypeOptions,
+  yearOfManufactureOptions,
+} from './data';
+import {
   FieldLabel,
   FormTextInput,
   IconTextInput,
+  SelectField,
   formFieldStyles,
 } from './components/VehicleFormFields';
 import { VehiclePhotosPicker, type VehiclePhoto } from './components/VehiclePhotosPicker';
@@ -127,7 +134,7 @@ export function AddVehicleScreen() {
 
       if (photos.length > 0) {
         const uploadResults = await Promise.allSettled(
-          photos.map((photo) => uploadVehicleImage({ vehicleId, label: 'exterior', photo }))
+          photos.map((photo) => uploadVehicleImage({ vehicleId, label: photo.label, photo }))
         );
 
         if (__DEV__) {
@@ -233,20 +240,22 @@ export function AddVehicleScreen() {
             <View style={formFieldStyles.fieldRow}>
               <View style={formFieldStyles.fieldColumn}>
                 <FieldLabel label="Vehicle type" />
-                <FormTextInput
+                <SelectField
+                  label="Vehicle type"
                   value={form.vehicleType}
-                  onChangeText={(value) => updateField('vehicleType', value)}
-                  placeholder="Car"
-                  autoCapitalize="none"
+                  options={vehicleTypeOptions}
+                  onChange={(value) => updateField('vehicleType', value)}
+                  placeholder="Select type"
                 />
               </View>
               <View style={formFieldStyles.fieldColumn}>
                 <FieldLabel label="Fuel type" />
-                <FormTextInput
+                <SelectField
+                  label="Fuel type"
                   value={form.fuelType}
-                  onChangeText={(value) => updateField('fuelType', value)}
-                  placeholder="Petrol"
-                  autoCapitalize="none"
+                  options={fuelTypeOptions}
+                  onChange={(value) => updateField('fuelType', value)}
+                  placeholder="Select fuel"
                 />
               </View>
             </View>
@@ -292,14 +301,12 @@ export function AddVehicleScreen() {
             <View style={formFieldStyles.fieldRow}>
               <View style={formFieldStyles.fieldColumn}>
                 <FieldLabel label="Year" />
-                <FormTextInput
+                <SelectField
+                  label="Year of manufacture"
                   value={form.yearOfManufacture}
-                  onChangeText={(value) =>
-                    updateField('yearOfManufacture', value.replace(/\D/g, '').slice(0, 4))
-                  }
-                  placeholder="2020"
-                  keyboardType="number-pad"
-                  maxLength={4}
+                  options={yearOfManufactureOptions}
+                  onChange={(value) => updateField('yearOfManufacture', value)}
+                  placeholder="Select year"
                 />
               </View>
               <View style={formFieldStyles.fieldColumn}>
@@ -348,11 +355,12 @@ export function AddVehicleScreen() {
 
             <View style={formFieldStyles.fieldGroup}>
               <FieldLabel label="Transmission type" />
-              <FormTextInput
+              <SelectField
+                label="Transmission type"
                 value={form.transmissionType}
-                onChangeText={(value) => updateField('transmissionType', value)}
-                placeholder="Manual"
-                autoCapitalize="none"
+                options={transmissionTypeOptions}
+                onChange={(value) => updateField('transmissionType', value)}
+                placeholder="Select transmission"
               />
             </View>
           </View>

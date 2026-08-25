@@ -18,8 +18,16 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { BottomSheet, Button, ShowroomPickerModal, type ShowroomRole } from '@/components/ui';
 import { FontFamily, Grid, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
-import { assignShowroom, createShowroom, createVehicle, getProfile } from '@/services';
+import { assignShowroom, createShowroom, createVehicle, getProfile, uploadVehicleImage } from '@/services';
 import { useAuthStore } from '@/store';
+import {
+  fuelTypeOptions,
+  transmissionTypeOptions,
+  vehicleTypeOptions,
+  yearOfManufactureOptions,
+} from '@/views/vehicles/data';
+import { SelectField } from '@/views/vehicles/components/VehicleFormFields';
+import { VehiclePhotosPicker, type VehiclePhoto } from '@/views/vehicles/components/VehiclePhotosPicker';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 type SetupStep = 'welcome' | 'showroom' | 'vehicle' | 'done';
@@ -130,6 +138,7 @@ export function WelcomeSetupScreen() {
   const [photoPickerTarget, setPhotoPickerTarget] = useState<'logo' | 'banner' | null>(null);
   const [vehicleNumber, setVehicleNumber] = useState('');
   const [vehicleForm, setVehicleForm] = useState<VehicleForm>(() => createDefaultVehicleForm());
+  const [vehiclePhotos, setVehiclePhotos] = useState<VehiclePhoto[]>([]);
   const [pendingVehicleId, setPendingVehicleId] = useState<number | null>(null);
   const [showroomOptions, setShowroomOptions] = useState<ShowroomRole[]>([]);
   const hasShowroomSelection = Boolean(pendingVehicleId && showroomOptions.length > 1);
@@ -374,6 +383,16 @@ export function WelcomeSetupScreen() {
         console.log('Assign vehicle showroom response', responseBody);
       }
 
+      if (vehiclePhotos.length > 0) {
+        const uploadResults = await Promise.allSettled(
+          vehiclePhotos.map((photo) => uploadVehicleImage({ vehicleId, label: photo.label, photo }))
+        );
+
+        if (__DEV__) {
+          console.log('Vehicle photo upload results', uploadResults);
+        }
+      }
+
       setPrimaryShowroomId(showroom.showroom_id);
       setPendingVehicleId(null);
       setShowroomOptions([]);
@@ -587,7 +606,12 @@ export function WelcomeSetupScreen() {
             ) : null}
 
             {step === 'vehicle' ? (
-              <VehiclePart form={vehicleForm} onFieldChange={updateVehicleField} />
+              <VehiclePart
+                form={vehicleForm}
+                onFieldChange={updateVehicleField}
+                photos={vehiclePhotos}
+                onPhotosChange={setVehiclePhotos}
+              />
             ) : null}
 
             {step === 'done' ? (
@@ -1287,9 +1311,13 @@ function PhotoSourceSheet({
 function VehiclePart({
   form,
   onFieldChange,
+  photos,
+  onPhotosChange,
 }: {
   form: VehicleForm;
   onFieldChange: (field: keyof VehicleForm, value: string) => void;
+  photos: VehiclePhoto[];
+  onPhotosChange: (photos: VehiclePhoto[]) => void;
 }) {
   const { colors } = useTheme();
 
@@ -1310,24 +1338,31 @@ function VehiclePart({
         </Text>
       </View>
 
+      <View style={styles.fieldGroup}>
+        <FieldLabel label="Photos" />
+        <VehiclePhotosPicker photos={photos} onChange={onPhotosChange} />
+      </View>
+
       <View style={styles.formFields}>
         <View style={styles.fieldRow}>
           <View style={styles.fieldColumn}>
             <FieldLabel label="Vehicle type" />
-            <FormTextInput
+            <SelectField
+              label="Vehicle type"
               value={form.vehicleType}
-              onChangeText={(value) => onFieldChange('vehicleType', value)}
-              placeholder="car"
-              autoCapitalize="none"
+              options={vehicleTypeOptions}
+              onChange={(value) => onFieldChange('vehicleType', value)}
+              placeholder="Select type"
             />
           </View>
           <View style={styles.fieldColumn}>
             <FieldLabel label="Fuel type" />
-            <FormTextInput
+            <SelectField
+              label="Fuel type"
               value={form.fuelType}
-              onChangeText={(value) => onFieldChange('fuelType', value)}
-              placeholder="petrol"
-              autoCapitalize="none"
+              options={fuelTypeOptions}
+              onChange={(value) => onFieldChange('fuelType', value)}
+              placeholder="Select fuel"
             />
           </View>
         </View>
@@ -1373,12 +1408,12 @@ function VehiclePart({
         <View style={styles.fieldRow}>
           <View style={styles.fieldColumn}>
             <FieldLabel label="Year" />
-            <FormTextInput
+            <SelectField
+              label="Year of manufacture"
               value={form.yearOfManufacture}
-              onChangeText={(value) => onFieldChange('yearOfManufacture', value)}
-              placeholder="2020"
-              keyboardType="number-pad"
-              maxLength={4}
+              options={yearOfManufactureOptions}
+              onChange={(value) => onFieldChange('yearOfManufacture', value)}
+              placeholder="Select year"
             />
           </View>
           <View style={styles.fieldColumn}>
@@ -1425,11 +1460,12 @@ function VehiclePart({
 
         <View style={styles.fieldGroup}>
           <FieldLabel label="Transmission type" />
-          <FormTextInput
+          <SelectField
+            label="Transmission type"
             value={form.transmissionType}
-            onChangeText={(value) => onFieldChange('transmissionType', value)}
-            placeholder="manual"
-            autoCapitalize="none"
+            options={transmissionTypeOptions}
+            onChange={(value) => onFieldChange('transmissionType', value)}
+            placeholder="Select transmission"
           />
         </View>
       </View>

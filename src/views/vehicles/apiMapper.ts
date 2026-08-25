@@ -14,7 +14,9 @@ export type ApiVehicleImage = {
 export type ApiVehicleImages = Record<string, ApiVehicleImage[] | undefined>;
 
 // Sections are tried in this order when picking the card/hero thumbnail.
-const IMAGE_SECTION_PRIORITY = ['exterior', 'interior', 'engine', 'odometer'];
+// Aligned with the upload API's documented label enum
+// (front | interior | exterior | back | wheel) rather than guessed values.
+const IMAGE_SECTION_PRIORITY = ['exterior', 'front', 'interior', 'back', 'wheel'];
 
 export type ApiVehicle = {
   id: number;
@@ -51,6 +53,43 @@ export type ApiVehicleListing = {
   cars: ApiVehicleGroup;
   bikes: ApiVehicleGroup;
   scooties: ApiVehicleGroup;
+};
+
+export type ApiVehicleExpense = {
+  id: number;
+  vehicle_id: number;
+  type: string;
+  amount: number;
+  paid_to?: string | null;
+  description?: string | null;
+  date: string;
+};
+
+export type ApiVehicleDetail = {
+  basic: {
+    id: number;
+    vehicle_type: ApiVehicle['vehicle_type'];
+    manufacturer: string;
+    model: string;
+    variant?: string | null;
+    color?: string | null;
+    year_of_manufacture: number;
+    rto_code?: string | null;
+    registration_number: string;
+    registration_state?: string | null;
+    usage_km: number;
+    fuel_type: string;
+    transmission_type: string;
+    current_status?: { status: ApiVehicleStatus; started_at?: string } | null;
+  };
+  buying_details?: { buying_price?: number | null; buying_date?: string | null } | null;
+  pricing?: {
+    price_tag?: number | null;
+    tagged_at?: string | null;
+    currency?: string | null;
+  } | null;
+  expenses?: ApiVehicleExpense[] | null;
+  images?: ApiVehicleImages | null;
 };
 
 export function categoryToApiGroupKey(category: VehicleCategory): keyof ApiVehicleListing {
@@ -103,6 +142,10 @@ function mapVehicleCategory(vehicleType: ApiVehicle['vehicle_type']): VehicleCat
   }
 
   return 'Cars';
+}
+
+function formatExpenseAmount(amount: number) {
+  return `₹${amount.toLocaleString('en-IN')}`;
 }
 
 function formatRupees(amount?: number | null) {
@@ -169,7 +212,7 @@ function formatNote(status: VehicleStatus, startedAt?: string) {
   return `In garage ${days} days`;
 }
 
-function collectImages(images?: ApiVehicleImages | null): ApiVehicleImage[] {
+export function collectImages(images?: ApiVehicleImages | null): ApiVehicleImage[] {
   if (!images) {
     return [];
   }
@@ -180,6 +223,23 @@ function collectImages(images?: ApiVehicleImages | null): ApiVehicleImage[] {
     .flatMap(([, sectionImages]) => sectionImages ?? []);
 
   return [...known, ...rest].filter((image) => Boolean(image?.url));
+}
+
+export type ApiVehicleImageWithLabel = ApiVehicleImage & { label: string };
+
+/** Like collectImages, but keeps each photo's source section as its label — used to group the Edit screen's photo picker by slot (front/back/interior/exterior/wheel). */
+export function collectImagesWithLabels(
+  images?: ApiVehicleImages | null
+): ApiVehicleImageWithLabel[] {
+  if (!images) {
+    return [];
+  }
+
+  return Object.entries(images).flatMap(([label, sectionImages]) =>
+    (sectionImages ?? [])
+      .filter((image) => Boolean(image?.url))
+      .map((image) => ({ ...image, label }))
+  );
 }
 
 export function mapApiVehicleToItem(vehicle: ApiVehicle): VehicleItem {
@@ -211,6 +271,45 @@ export function mapApiVehicleToItem(vehicle: ApiVehicle): VehicleItem {
     insuranceValidTill: '',
     lotLocation: '',
     expenses: [],
+    documents: [],
+  };
+}
+
+// The detail endpoint's `documents` shape isn't documented yet, so it's left
+// unmapped here just like the list mapper above.
+export function mapApiVehicleDetailToItem(detail: ApiVehicleDetail): VehicleItem {
+  const basic = detail.basic;
+  const status = mapApiStatus(basic.current_status?.status);
+  const buyingPrice = formatRupees(detail.buying_details?.buying_price);
+  const askingPrice = formatRupees(detail.pricing?.price_tag);
+  const images = collectImages(detail.images);
+
+  return {
+    id: String(basic.id),
+    name: `${basic.manufacturer} ${basic.model}`.trim(),
+    category: mapVehicleCategory(basic.vehicle_type),
+    registration: basic.registration_number,
+    price: askingPrice,
+    buyingPrice,
+    askingPrice,
+    status,
+    meta: `${basic.year_of_manufacture} · ${formatUsageKm(basic.usage_km)} · ${capitalize(basic.fuel_type)}`,
+    note: formatNote(status, basic.current_status?.started_at),
+    icon: mapVehicleIcon(basic.vehicle_type),
+    imageUrl: images[0]?.url,
+    imageUrls: images.map((image) => image.url),
+    photoCount: images.length,
+    owner: '',
+    color: basic.color ?? '',
+    engineNumber: '',
+    chassisNumber: '',
+    transmission: capitalize(basic.transmission_type),
+    insuranceValidTill: '',
+    lotLocation: '',
+    expenses: (detail.expenses ?? []).map((expense) => ({
+      label: expense.description?.trim() || capitalize(expense.type),
+      amount: formatExpenseAmount(expense.amount),
+    })),
     documents: [],
   };
 }
