@@ -102,7 +102,9 @@ function isFormComplete(form: VehicleForm) {
     form.usageKm.trim().length > 0 &&
     form.rtoCode.trim().length > 1 &&
     form.registrationState.trim().length > 0 &&
-    form.transmissionType.trim().length > 0
+    form.transmissionType.trim().length > 0 &&
+    form.buyingPrice.trim().length > 0 &&
+    form.askingPrice.trim().length > 0
   );
 }
 
@@ -113,7 +115,6 @@ export function EditVehicleScreen({ vehicleId }: EditVehicleScreenProps) {
   const [buyingDate, setBuyingDate] = useState<string | undefined>();
   const [taggedAt, setTaggedAt] = useState<string | undefined>();
   const [currency, setCurrency] = useState('inr');
-  const [hasExistingPricing, setHasExistingPricing] = useState(false);
   const [existingPhotos, setExistingPhotos] = useState<ExistingVehiclePhoto[]>([]);
   const [newPhotos, setNewPhotos] = useState<VehiclePhoto[]>([]);
   const [removingPhotoId, setRemovingPhotoId] = useState<number | null>(null);
@@ -141,10 +142,6 @@ export function EditVehicleScreen({ vehicleId }: EditVehicleScreenProps) {
         setBuyingDate(detail.buying_details?.buying_date ?? undefined);
         setTaggedAt(detail.pricing?.tagged_at ?? undefined);
         setCurrency(detail.pricing?.currency ?? 'inr');
-        setHasExistingPricing(
-          detail.buying_details?.buying_price !== undefined &&
-            detail.buying_details?.buying_price !== null
-        );
         setExistingPhotos(collectImagesWithLabels(detail.images));
       })
       .catch((error) => {
@@ -195,14 +192,16 @@ export function EditVehicleScreen({ vehicleId }: EditVehicleScreenProps) {
       return;
     }
 
-    const buyingPriceValue = form.buyingPrice ? Number(form.buyingPrice) : undefined;
-    const priceTagValue = form.askingPrice ? Number(form.askingPrice) : undefined;
+    const buyingPriceValue = Number(form.buyingPrice);
+    const priceTagValue = Number(form.askingPrice);
 
-    // The pricing endpoint requires buying_price + buying_date together the
-    // first time a vehicle gets priced (no record yet) — asking price alone
-    // isn't enough to create one.
-    if (!hasExistingPricing && priceTagValue !== undefined && buyingPriceValue === undefined) {
-      setErrorMessage('Enter a buying price before setting an asking price.');
+    // Validate pricing (must be > 0)
+    if (buyingPriceValue <= 0) {
+      setErrorMessage('Buying price must be greater than 0');
+      return;
+    }
+    if (priceTagValue <= 0) {
+      setErrorMessage('Asking price must be greater than 0');
       return;
     }
 
@@ -228,30 +227,22 @@ export function EditVehicleScreen({ vehicleId }: EditVehicleScreenProps) {
         }),
       ];
 
-      // Nothing to send if neither price field has a value and there's no
-      // existing pricing record to update.
-      if (buyingPriceValue !== undefined || priceTagValue !== undefined || hasExistingPricing) {
-        // buying_date is documented as a plain date ("2023-01-10"), unlike
-        // tagged_at which is a full ISO datetime — sending a datetime here
-        // was rejected by the API as an invalid request.
-        const resolvedBuyingDate = buyingDate
-          ? buyingDate.slice(0, 10)
-          : buyingPriceValue !== undefined
-            ? new Date().toISOString().slice(0, 10)
-            : undefined;
+      // Pricing is required, so always send it
+      const resolvedBuyingDate = buyingDate
+        ? buyingDate.slice(0, 10)
+        : new Date().toISOString().slice(0, 10);
 
-        requests.push(
-          updateVehiclePricing({
-            vehicleId,
-            buyingPrice: buyingPriceValue,
-            buyingDate: resolvedBuyingDate,
-            priceTag: priceTagValue,
-            taggedAt: taggedAt ?? (priceTagValue !== undefined ? new Date().toISOString() : undefined),
-            currency,
-            remarks: undefined,
-          })
-        );
-      }
+      requests.push(
+        updateVehiclePricing({
+          vehicleId,
+          buyingPrice: buyingPriceValue,
+          buyingDate: resolvedBuyingDate,
+          priceTag: priceTagValue,
+          taggedAt: taggedAt ?? new Date().toISOString(),
+          currency,
+          remarks: undefined,
+        })
+      );
 
       await Promise.all(requests);
 
@@ -339,6 +330,29 @@ export function EditVehicleScreen({ vehicleId }: EditVehicleScreenProps) {
           </View>
 
           <View style={formFieldStyles.formFields}>
+            <View style={formFieldStyles.fieldRow}>
+              <View style={formFieldStyles.fieldColumn}>
+                <FieldLabel label="Buying price" />
+                <FormTextInput
+                  value={form.buyingPrice}
+                  onChangeText={(value) =>
+                    updateField('buyingPrice', value.replace(/\D/g, ''))
+                  }
+                  keyboardType="number-pad"
+                />
+              </View>
+              <View style={formFieldStyles.fieldColumn}>
+                <FieldLabel label="Asking price" />
+                <FormTextInput
+                  value={form.askingPrice}
+                  onChangeText={(value) =>
+                    updateField('askingPrice', value.replace(/\D/g, ''))
+                  }
+                  keyboardType="number-pad"
+                />
+              </View>
+            </View>
+
             <View style={formFieldStyles.fieldRow}>
               <View style={formFieldStyles.fieldColumn}>
                 <FieldLabel label="Vehicle type" />
@@ -465,30 +479,6 @@ export function EditVehicleScreen({ vehicleId }: EditVehicleScreenProps) {
               />
             </View>
 
-            <View style={formFieldStyles.fieldRow}>
-              <View style={formFieldStyles.fieldColumn}>
-                <FieldLabel label="Buying price" />
-                <FormTextInput
-                  value={form.buyingPrice}
-                  onChangeText={(value) =>
-                    updateField('buyingPrice', value.replace(/\D/g, ''))
-                  }
-                  placeholder="483000"
-                  keyboardType="number-pad"
-                />
-              </View>
-              <View style={formFieldStyles.fieldColumn}>
-                <FieldLabel label="Asking price" />
-                <FormTextInput
-                  value={form.askingPrice}
-                  onChangeText={(value) =>
-                    updateField('askingPrice', value.replace(/\D/g, ''))
-                  }
-                  placeholder="520000"
-                  keyboardType="number-pad"
-                />
-              </View>
-            </View>
           </View>
 
           {errorMessage ? (

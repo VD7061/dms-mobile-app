@@ -46,26 +46,26 @@ type VehicleForm = {
   registrationState: string;
   registrationNumber: string;
   transmissionType: string;
-};
-
-const demoVehicleDefaults = {
-  vehicleType: 'car',
-  fuelType: 'petrol',
-  manufacturer: 'Toyota',
-  model: 'Camry',
-  variant: 'LE',
-  color: 'Black',
-  yearOfManufacture: '2020',
-  usageKm: '50000',
-  rtoCode: 'AS-01',
-  registrationState: 'Assam',
-  transmissionType: 'manual',
+  buyingPrice: string;
+  askingPrice: string;
 };
 
 function createDefaultForm(): VehicleForm {
   return {
-    ...demoVehicleDefaults,
+    vehicleType: '',
+    fuelType: '',
+    manufacturer: '',
+    model: '',
+    variant: '',
+    color: '',
+    yearOfManufacture: '',
+    usageKm: '',
+    rtoCode: '',
+    registrationState: '',
     registrationNumber: generateRegistrationNumber(),
+    transmissionType: '',
+    buyingPrice: '',
+    askingPrice: '',
   };
 }
 
@@ -106,7 +106,9 @@ function isFormComplete(form: VehicleForm) {
     form.rtoCode.trim().length > 1 &&
     form.registrationState.trim().length > 0 &&
     form.registrationNumber.replace(/\s/g, '').length > 3 &&
-    form.transmissionType.trim().length > 0
+    form.transmissionType.trim().length > 0 &&
+    form.buyingPrice.trim().length > 0 &&
+    form.askingPrice.trim().length > 0
   );
 }
 
@@ -185,6 +187,19 @@ export function AddVehicleScreen() {
       return;
     }
 
+    const buyingPriceValue = Number(form.buyingPrice);
+    const priceTagValue = Number(form.askingPrice);
+
+    // Validate pricing (must be > 0)
+    if (buyingPriceValue <= 0) {
+      setErrorMessage('Buying price must be greater than 0');
+      return;
+    }
+    if (priceTagValue <= 0) {
+      setErrorMessage('Asking price must be greater than 0');
+      return;
+    }
+
     Keyboard.dismiss();
     setErrorMessage('');
     setIsSubmitting(true);
@@ -237,6 +252,29 @@ export function AddVehicleScreen() {
           </View>
 
           <View style={formFieldStyles.formFields}>
+            <View style={formFieldStyles.fieldRow}>
+              <View style={formFieldStyles.fieldColumn}>
+                <FieldLabel label="Buying price" />
+                <FormTextInput
+                  value={form.buyingPrice}
+                  onChangeText={(value) =>
+                    updateField('buyingPrice', value.replace(/\D/g, ''))
+                  }
+                  keyboardType="number-pad"
+                />
+              </View>
+              <View style={formFieldStyles.fieldColumn}>
+                <FieldLabel label="Asking price" />
+                <FormTextInput
+                  value={form.askingPrice}
+                  onChangeText={(value) =>
+                    updateField('askingPrice', value.replace(/\D/g, ''))
+                  }
+                  keyboardType="number-pad"
+                />
+              </View>
+            </View>
+
             <View style={formFieldStyles.fieldRow}>
               <View style={formFieldStyles.fieldColumn}>
                 <FieldLabel label="Vehicle type" />

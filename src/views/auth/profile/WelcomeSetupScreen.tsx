@@ -71,23 +71,19 @@ const tabs = [
 ] as const;
 const PROFILE_RECHECK_DELAY_MS = 1000;
 const DASHBOARD_DELAY_MS = 5000;
-const demoVehicleDefaults = {
-  vehicleType: 'car',
-  manufacturer: 'Toyota',
-  model: 'Camry',
-  variant: 'LE',
-  color: 'Black',
-  yearOfManufacture: '2020',
-  rtoCode: 'AS-01',
-  registrationState: 'Assam',
-  usageKm: '50000',
-  fuelType: 'petrol',
-  transmissionType: 'manual',
-};
-
 function createDefaultVehicleForm(): VehicleForm {
   return {
-    ...demoVehicleDefaults,
+    vehicleType: '',
+    manufacturer: '',
+    model: '',
+    variant: '',
+    color: '',
+    yearOfManufacture: '',
+    rtoCode: '',
+    registrationState: '',
+    usageKm: '',
+    fuelType: '',
+    transmissionType: '',
     registrationNumber: generateRegistrationNumber(),
   };
 }
@@ -120,7 +116,7 @@ export function WelcomeSetupScreen() {
   const [step, setStep] = useState<SetupStep>(startsAtVehicle ? 'vehicle' : 'welcome');
   const [showroomComplete, setShowroomComplete] = useState(startsAtVehicle);
   const [vehicleComplete, setVehicleComplete] = useState(false);
-  const [showroomName, setShowroomName] = useState('AutoDeals Guwahati');
+  const [showroomName, setShowroomName] = useState('');
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
   const [showroomState, setShowroomState] = useState('');

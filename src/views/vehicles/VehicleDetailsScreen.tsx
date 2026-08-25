@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -33,47 +34,51 @@ export function VehicleDetailsScreen({ vehicleId }: VehicleDetailsScreenProps) {
   const [vehicle, setVehicle] = useState<VehicleItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
-  useEffect(() => {
-    let cancelled = false;
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
 
-    setIsLoading(true);
-    setErrorMessage('');
+      setIsLoading(true);
+      setErrorMessage('');
+      setSelectedImageIndex(0);
 
-    getVehicle({ vehicleId })
-      .then((response) => {
-        if (cancelled) {
-          return;
-        }
+      getVehicle({ vehicleId })
+        .then((response) => {
+          if (cancelled) {
+            return;
+          }
 
-        const responseData = response as unknown as { data?: ApiVehicleDetail };
-        const data = responseData?.data ?? (responseData as unknown as ApiVehicleDetail);
-        setVehicle(mapApiVehicleDetailToItem(data));
-      })
-      .catch((error) => {
-        if (cancelled) {
-          return;
-        }
+          const responseData = response as unknown as { data?: ApiVehicleDetail };
+          const data = responseData?.data ?? (responseData as unknown as ApiVehicleDetail);
+          setVehicle(mapApiVehicleDetailToItem(data));
+        })
+        .catch((error) => {
+          if (cancelled) {
+            return;
+          }
 
-        const notFound = error instanceof ApiError && error.status === 404;
-        setErrorMessage(
-          notFound
-            ? 'This vehicle may have been removed from inventory.'
-            : error instanceof Error
-              ? error.message
-              : 'Unable to load this vehicle.'
-        );
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
-      });
+          const notFound = error instanceof ApiError && error.status === 404;
+          setErrorMessage(
+            notFound
+              ? 'This vehicle may have been removed from inventory.'
+              : error instanceof Error
+                ? error.message
+                : 'Unable to load this vehicle.'
+          );
+        })
+        .finally(() => {
+          if (!cancelled) {
+            setIsLoading(false);
+          }
+        });
 
-    return () => {
-      cancelled = true;
-    };
-  }, [vehicleId]);
+      return () => {
+        cancelled = true;
+      };
+    }, [vehicleId])
+  );
 
   if (isLoading) {
     return (
@@ -141,7 +146,16 @@ export function VehicleDetailsScreen({ vehicleId }: VehicleDetailsScreenProps) {
         contentContainerStyle={[styles.content, { paddingHorizontal: horizontalPadding }]}
         showsVerticalScrollIndicator={false}>
         <View style={[styles.heroCard, { backgroundColor: heroBackground }]}>
-          {vehicle.imageUrl ? (
+          {vehicle.imageUrls && vehicle.imageUrls.length > 0 ? (
+            <Image
+              source={{ uri: vehicle.imageUrls[selectedImageIndex] || vehicle.imageUrl }}
+              style={styles.heroImage}
+              contentFit="cover"
+              transition={150}
+              cachePolicy="memory-disk"
+              recyclingKey={`${vehicle.id}-${selectedImageIndex}`}
+            />
+          ) : vehicle.imageUrl ? (
             <Image
               source={{ uri: vehicle.imageUrl }}
               style={styles.heroImage}
@@ -159,19 +173,26 @@ export function VehicleDetailsScreen({ vehicleId }: VehicleDetailsScreenProps) {
         </View>
 
         <View style={styles.photoChips}>
-          {Array.from({ length: visibleChipCount }).map((_, index) => (
-            <View
+          {(vehicle.imageUrls || []).slice(0, PHOTO_CHIP_COUNT).map((imageUrl, index) => (
+            <Pressable
               key={index}
+              onPress={() => setSelectedImageIndex(index)}
               style={[
                 styles.photoChip,
                 {
                   backgroundColor: chipBackground,
-                  borderColor: index === 0 ? borderColor : 'transparent',
-                  borderWidth: index === 0 ? 1 : 0,
+                  borderColor: selectedImageIndex === index ? borderColor : 'transparent',
+                  borderWidth: selectedImageIndex === index ? 2 : 0,
+                  opacity: selectedImageIndex === index ? 1 : 0.6,
                 },
               ]}>
-              <MaterialCommunityIcons name={vehicle.icon} size={20} color={colors.primary} />
-            </View>
+              <Image
+                source={{ uri: imageUrl }}
+                style={styles.photoChipImage}
+                contentFit="cover"
+                cachePolicy="memory-disk"
+              />
+            </Pressable>
           ))}
           {extraPhotos > 0 ? (
             <View style={[styles.photoChip, styles.photoChipCount, { backgroundColor: chipBackground }]}>
@@ -525,6 +546,11 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  photoChipImage: {
+    width: '100%',
+    height: '100%',
   },
   photoChipCount: {
     flexBasis: 0,
