@@ -22,15 +22,17 @@ export function AddEmployeeScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const { width: screenWidth } = useWindowDimensions();
-  const [userId, setUserId] = useState('');
+  const [name, setName] = useState('');
+  const [countryCode, setCountryCode] = useState('91');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [selectedRole, setSelectedRole] = useState<Role>('employee');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const horizontalPadding = screenWidth < 360 ? 16 : Grid.columns.margin;
 
   const handleAddEmployee = async () => {
-    if (!userId.trim()) {
-      setError('Please enter employee ID');
+    if (!name.trim() || !phoneNumber.trim()) {
+      setError('Please fill in all required fields');
       return;
     }
 
@@ -46,7 +48,9 @@ export function AddEmployeeScreen() {
 
       await addMember({
         showroomId,
-        userId: parseInt(userId),
+        name: name.trim(),
+        country_code: countryCode,
+        phone_number: phoneNumber.trim(),
         role: selectedRole,
       });
 
@@ -84,10 +88,10 @@ export function AddEmployeeScreen() {
         style={styles.scroll}
         contentContainerStyle={[styles.content, { paddingHorizontal: horizontalPadding }]}
         showsVerticalScrollIndicator={false}>
-        {/* Employee ID Input */}
+        {/* Full Name Input */}
         <View style={styles.section}>
           <Text style={[styles.label, { color: colors['on-surface'] }]}>
-            Employee ID
+            Full Name
           </Text>
           <TextInput
             style={[
@@ -98,16 +102,62 @@ export function AddEmployeeScreen() {
                 color: colors['on-surface'],
               },
             ]}
-            placeholder="Enter user ID"
+            placeholder="Enter full name"
             placeholderTextColor={colors['on-surface-variant']}
-            value={userId}
-            onChangeText={setUserId}
-            keyboardType="number-pad"
+            value={name}
+            onChangeText={setName}
             editable={!isLoading}
           />
           <Text style={[styles.hint, { color: colors['on-surface-variant'] }]}>
-            The unique ID of the user you want to add
+            Employee's full name
           </Text>
+        </View>
+
+        {/* Country Code & Phone Number */}
+        <View style={styles.phoneRow}>
+          <View style={[styles.section, { flex: 1 }]}>
+            <Text style={[styles.label, { color: colors['on-surface'] }]}>
+              Country Code
+            </Text>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  backgroundColor: colors['surface-container-lowest'],
+                  borderColor: colors.outline,
+                  color: colors['on-surface'],
+                },
+              ]}
+              placeholder="+91"
+              placeholderTextColor={colors['on-surface-variant']}
+              value={countryCode}
+              onChangeText={setCountryCode}
+              keyboardType="number-pad"
+              editable={!isLoading}
+            />
+          </View>
+
+          <View style={[styles.section, { flex: 1.5 }]}>
+            <Text style={[styles.label, { color: colors['on-surface'] }]}>
+              Phone Number
+            </Text>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  backgroundColor: colors['surface-container-lowest'],
+                  borderColor: colors.outline,
+                  color: colors['on-surface'],
+                },
+              ]}
+              placeholder="Enter phone number"
+              placeholderTextColor={colors['on-surface-variant']}
+              value={phoneNumber}
+              onChangeText={setPhoneNumber}
+              keyboardType="phone-pad"
+              editable={!isLoading}
+            />
+          </View>
         </View>
 
         {/* Role Selection */}
@@ -146,12 +196,12 @@ export function AddEmployeeScreen() {
         {/* Add Button */}
         <Pressable
           onPress={handleAddEmployee}
-          disabled={isLoading || !userId.trim()}
+          disabled={isLoading || !name.trim() || !phoneNumber.trim()}
           style={({ pressed }) => [
             styles.addButton,
             {
               backgroundColor:
-                isLoading || !userId.trim() ? colors['surface-container-high'] : colors.primary,
+                isLoading || !name.trim() || !phoneNumber.trim() ? colors['surface-container-high'] : colors.primary,
               opacity: pressed ? 0.85 : 1,
             },
           ]}>
@@ -160,7 +210,7 @@ export function AddEmployeeScreen() {
               styles.addButtonText,
               {
                 color:
-                  isLoading || !userId.trim()
+                  isLoading || !name.trim() || !phoneNumber.trim()
                     ? colors['on-surface-variant']
                     : colors['on-primary'],
               },
@@ -273,6 +323,10 @@ const styles = StyleSheet.create({
   hint: {
     ...Typography.caption,
     fontSize: 12,
+  },
+  phoneRow: {
+    flexDirection: 'row',
+    gap: 12,
   },
   roleOptions: {
     flexDirection: 'row',

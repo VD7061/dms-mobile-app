@@ -1,8 +1,8 @@
 import { api } from '../../../http';
 import { addMemberEndpoint } from './add-member.api';
 
-export function addMember({ showroomId, userId, role }) {
+export function addMember({ showroomId, name, country_code, phone_number, role }) {
   const endpoint = addMemberEndpoint.replace(':id', String(showroomId));
 
-  return api.post(endpoint, { user_id: userId, role });
+  return api.post(endpoint, { name, country_code, phone_number, role });
 }

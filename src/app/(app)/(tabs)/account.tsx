@@ -145,6 +145,7 @@ export default function AccountTab() {
             title="My Showroom"
             subtitle={primaryShowroom?.showroom_name ?? 'No showroom yet'}
             trailing="chevron"
+            onPress={() => router.push('/showroom/edit')}
           />
           <SettingsRow
             icon="ribbon-outline"
@@ -157,6 +158,7 @@ export default function AccountTab() {
             title="Notification"
             subtitle="Manage alerts & reminders"
             trailing="chevron"
+            onPress={() => router.push('/notifications')}
           />
           <SettingsRow
             icon={themePreference === 'dark' ? 'moon' : 'moon-outline'}
@@ -197,7 +199,7 @@ function SettingsRow({
   icon: IconName;
   title: string;
   subtitle: string;
-  trailing?: 'chevron' | React.ReactNode;
+  trailing?: 'chevron' | 'edit' | React.ReactNode;
   onPress?: () => void;
 }) {
   const { colors } = useTheme();
@@ -218,6 +220,8 @@ function SettingsRow({
       </View>
       {trailing === 'chevron' ? (
         <Ionicons name="chevron-forward" size={20} color={colors['on-surface']} />
+      ) : trailing === 'edit' ? (
+        <Ionicons name="pencil-outline" size={20} color={colors.primary} />
       ) : (
         trailing
       )}

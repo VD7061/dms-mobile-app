@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,10 +13,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { Typography, Grid } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
-import { listMembers, addMember } from '@/services';
+import { listMembers, addMember, removeMember, updateMemberRole } from '@/services';
 import { resolvePrimaryShowroomId } from '@/utils/showroom';
 import { SkeletonBox, BackButton, BottomSheet } from '@/components/ui';
 import { useTabDataFetch } from '@/hooks/useTabDataFetch';
+import { useAuthStore } from '@/store';
 
 type Role = 'employee' | 'manager';
 
@@ -36,12 +38,17 @@ type MembersResponse = {
 export function ManageEmployeesScreen() {
   const { colors } = useTheme();
   const { width: screenWidth } = useWindowDimensions();
+  const { phoneNumber: currentPhoneNumber } = useAuthStore();
   const [employees, setEmployees] = useState<Member[]>([]);
   const [showAddSheet, setShowAddSheet] = useState(false);
-  const [userId, setUserId] = useState('');
+  const [name, setName] = useState('');
+  const [countryCode, setCountryCode] = useState('91');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [selectedRole, setSelectedRole] = useState<Role>('employee');
   const [isAddingEmployee, setIsAddingEmployee] = useState(false);
   const [addError, setAddError] = useState('');
+  const [editingMemberId, setEditingMemberId] = useState<number | null>(null);
+  const [editingRole, setEditingRole] = useState<Role>('employee');
   const horizontalPadding = screenWidth < 360 ? 16 : Grid.columns.margin;
 
   const { isLoading, setIsLoading } = useTabDataFetch({
@@ -56,8 +63,8 @@ export function ManageEmployeesScreen() {
   });
 
   const handleAddEmployee = async () => {
-    if (!userId.trim()) {
-      setAddError('Please enter employee ID');
+    if (!name.trim() || !phoneNumber.trim()) {
+      setAddError('Please fill in all required fields');
       return;
     }
 
@@ -73,7 +80,9 @@ export function ManageEmployeesScreen() {
 
       await addMember({
         showroomId,
-        userId: parseInt(userId),
+        name: name.trim(),
+        country_code: countryCode,
+        phone_number: phoneNumber.trim(),
         role: selectedRole,
       });
 
@@ -85,7 +94,9 @@ export function ManageEmployeesScreen() {
       setIsLoading(false);
 
       // Reset and close
-      setUserId('');
+      setName('');
+      setCountryCode('91');
+      setPhoneNumber('');
       setSelectedRole('employee');
       setAddError('');
       setShowAddSheet(false);
@@ -96,6 +107,67 @@ export function ManageEmployeesScreen() {
     }
   };
 
+  const handleDeleteEmployee = async (employeeId: number, employeeName: string) => {
+    Alert.alert(
+      'Remove Employee',
+      `Are you sure you want to remove ${employeeName} from your team?`,
+      [
+        { text: 'Cancel', onPress: () => {}, style: 'cancel' },
+        {
+          text: 'Remove',
+          onPress: async () => {
+            try {
+              const showroomId = await resolvePrimaryShowroomId();
+              if (!showroomId) return;
+
+              await removeMember({ showroomId, userId: employeeId });
+
+              // Refresh the list
+              setIsLoading(true);
+              const response = await listMembers({ showroomId });
+              const data = (response as unknown as MembersResponse)?.data;
+              setEmployees(data?.members ?? []);
+              setIsLoading(false);
+            } catch (err) {
+              Alert.alert('Error', err instanceof Error ? err.message : 'Failed to remove employee');
+            }
+          },
+          style: 'destructive',
+        },
+      ]
+    );
+  };
+
+  const handleUpdateRole = async (employeeId: number, newRole: Role, employeeName: string) => {
+    Alert.alert(
+      'Update Role',
+      `Change ${employeeName}'s role to ${newRole === 'manager' ? 'Manager' : 'Sales Staff'}?`,
+      [
+        { text: 'Cancel', onPress: () => {}, style: 'cancel' },
+        {
+          text: 'Update',
+          onPress: async () => {
+            try {
+              const showroomId = await resolvePrimaryShowroomId();
+              if (!showroomId) return;
+
+              await updateMemberRole({ showroomId, userId: employeeId, role: newRole });
+
+              // Refresh the list
+              setIsLoading(true);
+              const response = await listMembers({ showroomId });
+              const data = (response as unknown as MembersResponse)?.data;
+              setEmployees(data?.members ?? []);
+              setIsLoading(false);
+              setEditingMemberId(null);
+            } catch (err) {
+              Alert.alert('Error', err instanceof Error ? err.message : 'Failed to update role');
+            }
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <SafeAreaView
@@ -157,7 +229,16 @@ export function ManageEmployeesScreen() {
           <>
             {employees.map((employee) => (
               <View key={employee.user_id} style={styles.employeeItemContainer}>
-                <EmployeeCard employee={employee} />
+                <EmployeeCard
+                  employee={employee}
+                  onDelete={handleDeleteEmployee}
+                  onEditRole={handleUpdateRole}
+                  editingMemberId={editingMemberId}
+                  editingRole={editingRole}
+                  onSetEditingMember={setEditingMemberId}
+                  onSetEditingRole={setEditingRole}
+                  currentPhoneNumber={currentPhoneNumber}
+                />
               </View>
             ))}
           </>
@@ -172,8 +253,12 @@ export function ManageEmployeesScreen() {
         <AddEmployeeBottomSheet
           onClose={() => setShowAddSheet(false)}
           onAdd={handleAddEmployee}
-          userId={userId}
-          setUserId={setUserId}
+          name={name}
+          setName={setName}
+          countryCode={countryCode}
+          setCountryCode={setCountryCode}
+          phoneNumber={phoneNumber}
+          setPhoneNumber={setPhoneNumber}
           selectedRole={selectedRole}
           setSelectedRole={setSelectedRole}
           isLoading={isAddingEmployee}
@@ -188,8 +273,12 @@ export function ManageEmployeesScreen() {
 function AddEmployeeBottomSheet({
   onClose,
   onAdd,
-  userId,
-  setUserId,
+  name,
+  setName,
+  countryCode,
+  setCountryCode,
+  phoneNumber,
+  setPhoneNumber,
   selectedRole,
   setSelectedRole,
   isLoading,
@@ -198,8 +287,12 @@ function AddEmployeeBottomSheet({
 }: {
   onClose: () => void;
   onAdd: () => void;
-  userId: string;
-  setUserId: (val: string) => void;
+  name: string;
+  setName: (val: string) => void;
+  countryCode: string;
+  setCountryCode: (val: string) => void;
+  phoneNumber: string;
+  setPhoneNumber: (val: string) => void;
   selectedRole: Role;
   setSelectedRole: (val: Role) => void;
   isLoading: boolean;
@@ -225,10 +318,10 @@ function AddEmployeeBottomSheet({
 
       {/* Form Section */}
       <View style={styles.formSection}>
-        {/* Employee ID Input */}
+        {/* Name Input */}
         <View style={styles.inputGroup}>
           <Text style={[styles.inputLabel, { color: colors['on-surface'] }]}>
-            Employee ID *
+            Full Name *
           </Text>
           <TextInput
             style={[
@@ -239,16 +332,62 @@ function AddEmployeeBottomSheet({
                 color: colors['on-surface'],
               },
             ]}
-            placeholder="Enter user ID"
+            placeholder="Enter full name"
             placeholderTextColor={colors['on-surface-variant']}
-            value={userId}
-            onChangeText={setUserId}
-            keyboardType="number-pad"
+            value={name}
+            onChangeText={setName}
             editable={!isLoading}
           />
           <Text style={[styles.helperText, { color: colors['on-surface-variant'] }]}>
-            The unique ID of the user you want to add
+            Employee's full name
           </Text>
+        </View>
+
+        {/* Country Code & Phone Number Row */}
+        <View style={styles.phoneRow}>
+          <View style={[styles.inputGroup, { flex: 1 }]}>
+            <Text style={[styles.inputLabel, { color: colors['on-surface'] }]}>
+              Country Code *
+            </Text>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  backgroundColor: colors['surface-container-lowest'],
+                  borderColor: error ? colors.error : colors.outline,
+                  color: colors['on-surface'],
+                },
+              ]}
+              placeholder="+91"
+              placeholderTextColor={colors['on-surface-variant']}
+              value={countryCode}
+              onChangeText={setCountryCode}
+              keyboardType="number-pad"
+              editable={!isLoading}
+            />
+          </View>
+
+          <View style={[styles.inputGroup, { flex: 1.5 }]}>
+            <Text style={[styles.inputLabel, { color: colors['on-surface'] }]}>
+              Phone Number *
+            </Text>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  backgroundColor: colors['surface-container-lowest'],
+                  borderColor: error ? colors.error : colors.outline,
+                  color: colors['on-surface'],
+                },
+              ]}
+              placeholder="Enter phone number"
+              placeholderTextColor={colors['on-surface-variant']}
+              value={phoneNumber}
+              onChangeText={setPhoneNumber}
+              keyboardType="phone-pad"
+              editable={!isLoading}
+            />
+          </View>
         </View>
 
         {/* Role Selection */}
@@ -317,12 +456,12 @@ function AddEmployeeBottomSheet({
         </Pressable>
         <Pressable
           onPress={onAdd}
-          disabled={isLoading || !userId.trim()}
+          disabled={isLoading || !name.trim() || !phoneNumber.trim()}
           style={({ pressed }) => [
             styles.addButton,
             {
               backgroundColor:
-                isLoading || !userId.trim() ? colors['surface-container-high'] : colors.primary,
+                isLoading || !name.trim() || !phoneNumber.trim() ? colors['surface-container-high'] : colors.primary,
               opacity: pressed ? 0.85 : 1,
             },
           ]}>
@@ -330,7 +469,7 @@ function AddEmployeeBottomSheet({
             name="add"
             size={22}
             color={
-              isLoading || !userId.trim()
+              isLoading || !name.trim() || !phoneNumber.trim()
                 ? colors['on-surface-variant']
                 : colors['on-primary']
             }
@@ -340,7 +479,7 @@ function AddEmployeeBottomSheet({
               styles.addButtonText,
               {
                 color:
-                  isLoading || !userId.trim()
+                  isLoading || !name.trim() || !phoneNumber.trim()
                     ? colors['on-surface-variant']
                     : colors['on-primary'],
               },
@@ -401,9 +540,30 @@ function RoleButton({
   );
 }
 
-function EmployeeCard({ employee }: { employee: Member }) {
+function EmployeeCard({
+  employee,
+  onDelete,
+  onEditRole,
+  editingMemberId,
+  editingRole,
+  onSetEditingMember,
+  onSetEditingRole,
+  currentPhoneNumber,
+}: {
+  employee: Member;
+  onDelete: (employeeId: number, employeeName: string) => void;
+  onEditRole: (employeeId: number, newRole: Role, employeeName: string) => void;
+  editingMemberId: number | null;
+  editingRole: Role;
+  onSetEditingMember: (id: number | null) => void;
+  onSetEditingRole: (role: Role) => void;
+  currentPhoneNumber: string;
+}) {
   const { colors } = useTheme();
   const roleText = employee.role ? employee.role.charAt(0).toUpperCase() + employee.role.slice(1) : 'Staff';
+  const isEditing = editingMemberId === employee.user_id;
+  const isCurrentUser = currentPhoneNumber === employee.phone_number;
+  const canEdit = !isCurrentUser;
 
   return (
     <View
@@ -428,17 +588,98 @@ function EmployeeCard({ employee }: { employee: Member }) {
         <Text style={[styles.employeeName, { color: colors['on-surface'] }]} numberOfLines={1}>
           {employee.name || 'Unnamed Employee'}
         </Text>
-        <Text style={[styles.employeeRole, { color: colors['on-surface-variant'] }]} numberOfLines={1}>
-          {roleText} • {employee.phone_number || 'No contact'}
-        </Text>
+        {isEditing ? (
+          <View style={styles.roleEditOptions}>
+            <Pressable
+              onPress={() => {
+                onSetEditingRole('employee');
+                onEditRole(employee.user_id, 'employee', employee.name || 'Employee');
+              }}
+              style={({ pressed }) => [
+                styles.roleEditButton,
+                {
+                  backgroundColor:
+                    editingRole === 'employee' ? colors.primary : colors['surface-container-high'],
+                  opacity: pressed ? 0.7 : 1,
+                },
+              ]}>
+              <Text
+                style={[
+                  styles.roleEditButtonText,
+                  {
+                    color:
+                      editingRole === 'employee' ? colors['on-primary'] : colors['on-surface'],
+                  },
+                ]}>
+                Staff
+              </Text>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                onSetEditingRole('manager');
+                onEditRole(employee.user_id, 'manager', employee.name || 'Employee');
+              }}
+              style={({ pressed }) => [
+                styles.roleEditButton,
+                {
+                  backgroundColor:
+                    editingRole === 'manager' ? colors.primary : colors['surface-container-high'],
+                  opacity: pressed ? 0.7 : 1,
+                },
+              ]}>
+              <Text
+                style={[
+                  styles.roleEditButtonText,
+                  {
+                    color:
+                      editingRole === 'manager' ? colors['on-primary'] : colors['on-surface'],
+                  },
+                ]}>
+                Manager
+              </Text>
+            </Pressable>
+          </View>
+        ) : (
+          <Text style={[styles.employeeRole, { color: colors['on-surface-variant'] }]} numberOfLines={1}>
+            {roleText} • {employee.phone_number || 'No contact'}
+          </Text>
+        )}
       </View>
 
       <View style={styles.employeeActions}>
-        <Pressable style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}>
-          <Ionicons name="pencil-outline" size={20} color={colors.primary} />
+        <Pressable
+          disabled={!canEdit}
+          onPress={() => {
+            if (!canEdit) return;
+            if (isEditing) {
+              onSetEditingMember(null);
+            } else {
+              onSetEditingMember(employee.user_id);
+              onSetEditingRole((employee.role as Role) || 'employee');
+            }
+          }}
+          style={({ pressed }) => [{ opacity: pressed && canEdit ? 0.6 : canEdit ? 1 : 0.3 }]}>
+          <Ionicons
+            name={isEditing ? 'close' : 'pencil-outline'}
+            size={20}
+            color={canEdit ? colors.primary : colors['on-surface-variant']}
+          />
         </Pressable>
-        <Pressable style={({ pressed }) => [styles.deleteButton, { opacity: pressed ? 0.6 : 1 }]}>
-          <Ionicons name="trash-outline" size={20} color={colors.error} />
+        <Pressable
+          disabled={!canEdit}
+          onPress={() => {
+            if (!canEdit) return;
+            onDelete(employee.user_id, employee.name || 'Employee');
+          }}
+          style={({ pressed }) => [
+            styles.deleteButton,
+            { opacity: pressed && canEdit ? 0.6 : canEdit ? 1 : 0.3 },
+          ]}>
+          <Ionicons
+            name="trash-outline"
+            size={20}
+            color={canEdit ? colors.error : colors['on-surface-variant']}
+          />
         </Pressable>
       </View>
     </View>
@@ -580,6 +821,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
   },
+  roleEditOptions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+  },
+  roleEditButton: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  roleEditButtonText: {
+    ...Typography.caption,
+    fontSize: 12,
+    fontWeight: '600',
+  },
   employeeActions: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -646,6 +904,10 @@ const styles = StyleSheet.create({
   helperText: {
     ...Typography.caption,
     fontSize: 12,
+  },
+  phoneRow: {
+    flexDirection: 'row',
+    gap: 12,
   },
   roleOptions: {
     flexDirection: 'row',

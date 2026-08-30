@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import { Grid } from '@/constants/theme';
 import { getDashboard } from '@/services';
@@ -49,6 +50,7 @@ type DashboardResponse = {
 };
 
 export function DashboardScreen() {
+  const router = useRouter();
   const { colors } = useTheme();
   const { width: screenWidth } = useWindowDimensions();
   const fullName = useAuthStore((s) => s.fullName);
@@ -95,6 +97,7 @@ export function DashboardScreen() {
           eyebrow="Main Showroom"
           greeting={`Good morning,\n${firstName}`}
           subtitle="Performance overview for your dealership"
+          onNotificationPress={() => router.push('/notifications')}
         />
         <RangeFilter
           ranges={timeRanges}
