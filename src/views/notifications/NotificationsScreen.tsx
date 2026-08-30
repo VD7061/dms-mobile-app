@@ -130,7 +130,7 @@ export function NotificationsScreen() {
           contentContainerStyle={[styles.content, { paddingHorizontal: horizontalPadding }]}
           showsVerticalScrollIndicator={false}>
           {/* Title with Clear All */}
-          <View style={styles.titleRow}>
+          <View style={styles.pageTitleRow}>
             <Text style={[styles.title, { color: colors['on-surface'] }]}>
               Notifications
             </Text>
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 12,
   },
-  titleRow: {
+  pageTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

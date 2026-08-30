@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BackButton } from '@/components/ui';
 import { FontFamily, Grid, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
+import { PERMISSIONS, usePermissions } from '@/permissions';
 import { ApiError, getVehicle } from '@/services';
 import { mapApiVehicleDetailToItem, type ApiVehicleDetail } from './apiMapper';
 import type { VehicleDocument, VehicleExpense, VehicleItem, VehicleStatus } from './types';
@@ -29,6 +30,7 @@ const PHOTO_CHIP_COUNT = 4;
 export function VehicleDetailsScreen({ vehicleId }: VehicleDetailsScreenProps) {
   const router = useRouter();
   const { colors, isDark } = useTheme();
+  const { can } = usePermissions();
   const { width: screenWidth } = useWindowDimensions();
   const horizontalPadding = screenWidth < 360 ? 16 : Grid.columns.margin;
   const [vehicle, setVehicle] = useState<VehicleItem | null>(null);
@@ -122,16 +124,21 @@ export function VehicleDetailsScreen({ vehicleId }: VehicleDetailsScreenProps) {
   const totalPhotos = vehicle.photoCount ?? PHOTO_CHIP_COUNT;
   const visibleChipCount = Math.min(totalPhotos, PHOTO_CHIP_COUNT);
   const extraPhotos = Math.max(totalPhotos - PHOTO_CHIP_COUNT, 0);
-  const actionItems = [
-    {
-      label: 'Edit',
-      icon: 'square-edit-outline' as const,
-      onPress: () => router.push({ pathname: '/vehicle/edit/[id]', params: { id: vehicle.id } }),
-    },
-    { label: 'Change State', icon: 'swap-horizontal' as const },
-    { label: 'Sell', icon: 'tag-outline' as const },
-    { label: 'Add Expense', icon: 'plus' as const },
-  ];
+  // Every action here writes, so a read-only viewer gets the detail page with no
+  // action row at all rather than a row of dead buttons.
+  const actionItems = can(PERMISSIONS.VEHICLE_UPDATE)
+    ? [
+        {
+          label: 'Edit',
+          icon: 'square-edit-outline' as const,
+          onPress: () =>
+            router.push({ pathname: '/vehicle/edit/[id]', params: { id: vehicle.id } }),
+        },
+        { label: 'Change State', icon: 'swap-horizontal' as const },
+        { label: 'Sell', icon: 'tag-outline' as const },
+        { label: 'Add Expense', icon: 'plus' as const },
+      ]
+    : [];
 
   return (
     <SafeAreaView

@@ -4,12 +4,22 @@ import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/useTheme';
+import { TAB_PERMISSIONS, usePermissions } from '@/permissions';
 
 type TabIconName = React.ComponentProps<typeof Ionicons>['name'];
 
 export default function TabsLayout() {
   const { colors, isDark } = useTheme();
+  const { can } = usePermissions();
   const insets = useSafeAreaInsets();
+
+  // `href: null` hides the tab; the screen's own RequirePermission is what
+  // actually blocks it, since a deep link still mounts a hidden route.
+  const tabHref = (name: keyof typeof TAB_PERMISSIONS) => {
+    const permission = TAB_PERMISSIONS[name];
+
+    return !permission || can(permission) ? undefined : null;
+  };
   const bottomPadding = Math.max(insets.bottom, 18);
   const tabBarBackground = isDark ? colors['secondary-container'] : colors.primary;
   const activeTabColor = isDark ? colors['on-surface'] : colors['on-primary'];
@@ -57,6 +67,7 @@ export default function TabsLayout() {
           title: 'Dashboard',
           tabBarIcon: renderTabIcon('grid'),
           unmountOnBlur: false,
+          href: tabHref('index'),
         }}
       />
       <Tabs.Screen
@@ -65,6 +76,7 @@ export default function TabsLayout() {
           title: 'Vehicles',
           tabBarIcon: renderTabIcon('car'),
           unmountOnBlur: false,
+          href: tabHref('vehicles'),
         }}
       />
       <Tabs.Screen
@@ -73,6 +85,7 @@ export default function TabsLayout() {
           title: 'Reports',
           tabBarIcon: renderTabIcon('receipt'),
           unmountOnBlur: false,
+          href: tabHref('reports'),
         }}
       />
       <Tabs.Screen
@@ -81,6 +94,7 @@ export default function TabsLayout() {
           title: 'Tags',
           tabBarIcon: renderTabIcon('pricetag'),
           unmountOnBlur: false,
+          href: tabHref('tags'),
         }}
       />
       <Tabs.Screen

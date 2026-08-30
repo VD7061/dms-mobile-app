@@ -11,7 +11,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Typography, Grid } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
+import { PERMISSIONS, usePermissions } from '@/permissions';
 import { getProfile, listVehicles } from '@/services';
+import { syncShowroomFromProfile } from '@/utils/showroom';
 import { useAuthStore } from '@/store';
 import { categoryToApiGroupKey, mapApiVehicleToItem, type ApiVehicleListing } from './apiMapper';
 import { InventoryHeader } from './components/InventoryHeader';
@@ -30,15 +32,10 @@ const emptyGroup = { total: 0, page: 1, limit: LISTING_LIMIT, vehicles: [] };
 type ShowroomRole = { showroom_id: number; role?: string | null };
 type ProfileData = { showroom_roles?: ShowroomRole[] | null };
 
-function getPrimaryShowroomId(profile: ProfileData | null) {
-  const roles = profile?.showroom_roles ?? [];
-  const owned = roles.find((role) => role.role === 'owner');
-  return (owned ?? roles[0])?.showroom_id;
-}
-
 export function VehiclesScreen() {
   const router = useRouter();
   const { colors } = useTheme();
+  const { can } = usePermissions();
   const { width: screenWidth } = useWindowDimensions();
   // Read imperatively rather than subscribing: the focus effect below *sets*
   // this value, and subscribing made the effect's identity change mid-load,
@@ -62,11 +59,12 @@ export function VehiclesScreen() {
             const profileData =
               (profileResponse as unknown as { data?: ProfileData })?.data ??
               (profileResponse as unknown as ProfileData);
-            const resolvedId = getPrimaryShowroomId(profileData);
+            // Goes through the shared sync so the role lands with the id;
+            // setting the id alone would leave the two able to disagree.
+            const resolvedId = syncShowroomFromProfile(profileData)?.showroom_id;
 
             if (resolvedId) {
               primaryShowroomIdRef.current = resolvedId;
-              useAuthStore.getState().setPrimaryShowroomId(resolvedId);
             }
 
             return resolvedId;
@@ -150,6 +148,7 @@ export function VehiclesScreen() {
         <InventoryHeader
           totalCount={totalVehicleCount}
           onAddPress={() => router.push('/vehicle/add')}
+          canAdd={can(PERMISSIONS.VEHICLE_CREATE)}
           viewMode={viewMode}
           onViewModeChange={setViewMode}
         />

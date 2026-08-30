@@ -8,6 +8,7 @@ export default function AppLayout() {
   const navigationTheme = useNavigationTheme();
   const { isLoading, hasTokens } = useSession();
   const canEnterApp = useAuthStore((s) => s.canEnterApp);
+  const role = useAuthStore((s) => s.primaryShowroomRole);
 
   if (isLoading) {
     return (
@@ -22,6 +23,12 @@ export default function AppLayout() {
   }
 
   if (!canEnterApp) {
+    return <Redirect href="/(setup)/loading" />;
+  }
+
+  // Without a role every permission check denies, which would render an app with
+  // no tabs. Send them back through the loader to refetch rather than guess.
+  if (!role) {
     return <Redirect href="/(setup)/loading" />;
   }
 

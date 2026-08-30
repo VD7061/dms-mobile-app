@@ -98,6 +98,10 @@ export function EditShowroomScreen() {
         showroomId: currentShowroom.id,
         name: showroomName.trim(),
         geolocation,
+        logo: undefined,
+        banner: undefined,
+        removeLogo: false,
+        removeBanner: false,
       });
 
       Alert.alert('Success', 'Showroom details updated successfully');

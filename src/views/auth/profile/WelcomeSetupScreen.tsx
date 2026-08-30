@@ -18,6 +18,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { BottomSheet, Button, ShowroomPickerModal, type ShowroomRole } from '@/components/ui';
 import { FontFamily, Grid, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
+import { normalizeRole } from '@/permissions';
 import { assignShowroom, createShowroom, createVehicle, getProfile, uploadVehicleImage } from '@/services';
 import { useAuthStore } from '@/store';
 import {
@@ -111,7 +112,7 @@ export function WelcomeSetupScreen() {
   const setCanEnterApp = useAuthStore((s) => s.setCanEnterApp);
   const setFullName = useAuthStore((s) => s.setFullName);
   const setProfileContact = useAuthStore((s) => s.setProfileContact);
-  const setPrimaryShowroomId = useAuthStore((s) => s.setPrimaryShowroomId);
+  const setPrimaryShowroom = useAuthStore((s) => s.setPrimaryShowroom);
   const startsAtVehicle = params.step === 'vehicle';
   const [step, setStep] = useState<SetupStep>(startsAtVehicle ? 'vehicle' : 'welcome');
   const [showroomComplete, setShowroomComplete] = useState(startsAtVehicle);
@@ -389,7 +390,12 @@ export function WelcomeSetupScreen() {
         }
       }
 
-      setPrimaryShowroomId(showroom.showroom_id);
+      // This flow enters the app directly, so seed the role here too. Whoever
+      // just created the showroom during onboarding owns it.
+      setPrimaryShowroom({
+        showroomId: showroom.showroom_id,
+        role: normalizeRole(showroom.role) ?? 'owner',
+      });
       setPendingVehicleId(null);
       setShowroomOptions([]);
       setVehicleComplete(true);

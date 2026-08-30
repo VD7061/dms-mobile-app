@@ -6,7 +6,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { FontFamily, Grid, Typography } from '@/constants/theme';
 import { useLogout } from '@/hooks/useLogout';
 import { useTheme } from '@/hooks/useTheme';
+import { PERMISSIONS, usePermissions } from '@/permissions';
 import { getProfile, listMembers } from '@/services';
+import { syncShowroomFromProfile } from '@/utils/showroom';
 import { useAuthStore, useThemeStore, type ThemePreference } from '@/store';
 
 type ShowroomRole = {
@@ -39,7 +41,7 @@ export default function AccountTab() {
   const router = useRouter();
   const { colors } = useTheme();
   const fullName = useAuthStore((s) => s.fullName);
-  const setPrimaryShowroomId = useAuthStore((s) => s.setPrimaryShowroomId);
+  const { can } = usePermissions();
   const { isLoggingOut, logout } = useLogout();
   const themePreference = useThemeStore((s) => s.themePreference);
   const setThemePreference = useThemeStore((s) => s.setThemePreference);
@@ -63,11 +65,13 @@ export default function AccountTab() {
         const data = (response as { data?: ProfileData })?.data ?? (response as ProfileData);
         setProfile(data ?? null);
 
-        const primaryShowroom = getPrimaryShowroom(data ?? null);
+        // Keeps showroom and role in step; a role change made elsewhere lands
+        // the next time this screen loads.
+        const primaryShowroom = syncShowroomFromProfile(data ?? null);
 
-        if (primaryShowroom) {
-          setPrimaryShowroomId(primaryShowroom.showroom_id);
-
+        // Members is an owner/manager endpoint; skip it rather than firing a
+        // request that comes back 403 for everyone else.
+        if (primaryShowroom && can(PERMISSIONS.EMPLOYEE_READ)) {
           listMembers({ showroomId: primaryShowroom.showroom_id })
             .then((membersResponse) => {
               if (cancelled) {
@@ -93,7 +97,7 @@ export default function AccountTab() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [can]);
 
   const displayName = profile?.name || fullName || 'Dealer';
   const primaryShowroom = getPrimaryShowroom(profile);
@@ -124,42 +128,50 @@ export default function AccountTab() {
         </View>
 
         <View style={styles.rows}>
-          <SettingsRow
-            icon="person-add-outline"
-            title="My Employees"
-            subtitle="Manage sales, staff access"
-            trailing={
-              employeeCount !== null ? (
-                <View
-                  style={[styles.countBadge, { backgroundColor: colors['surface-container-high'] }]}>
-                  <Text style={[styles.countBadgeText, { color: colors.primary }]}>
-                    {employeeCount}
-                  </Text>
-                </View>
-              ) : undefined
-            }
-            onPress={() => router.push('/employees')}
-          />
-          <SettingsRow
-            icon="storefront-outline"
-            title="My Showroom"
-            subtitle={primaryShowroom?.showroom_name ?? 'No showroom yet'}
-            trailing="chevron"
-            onPress={() => router.push('/showroom/edit')}
-          />
-          <SettingsRow
-            icon="ribbon-outline"
-            title="Subscription"
-            subtitle={'Basic plan\nRenews 15 Aug'}
-            trailing="chevron"
-          />
-          <SettingsRow
-            icon="notifications-outline"
-            title="Notification"
-            subtitle="Manage alerts & reminders"
-            trailing="chevron"
-            onPress={() => router.push('/notifications')}
-          />
+          {can(PERMISSIONS.EMPLOYEE_READ) ? (
+            <SettingsRow
+              icon="person-add-outline"
+              title="My Employees"
+              subtitle="Manage sales, staff access"
+              trailing={
+                employeeCount !== null ? (
+                  <View
+                    style={[styles.countBadge, { backgroundColor: colors['surface-container-high'] }]}>
+                    <Text style={[styles.countBadgeText, { color: colors.primary }]}>
+                      {employeeCount}
+                    </Text>
+                  </View>
+                ) : undefined
+              }
+              onPress={() => router.push('/employees')}
+            />
+          ) : null}
+          {can(PERMISSIONS.SHOWROOM_UPDATE) ? (
+            <SettingsRow
+              icon="storefront-outline"
+              title="My Showroom"
+              subtitle={primaryShowroom?.showroom_name ?? 'No showroom yet'}
+              trailing="chevron"
+              onPress={() => router.push('/showroom/edit')}
+            />
+          ) : null}
+          {can(PERMISSIONS.REPORTS_READ) ? (
+            <SettingsRow
+              icon="ribbon-outline"
+              title="Subscription"
+              subtitle={'Basic plan\nRenews 15 Aug'}
+              trailing="chevron"
+            />
+          ) : null}
+          {can(PERMISSIONS.NOTIFICATION_READ) ? (
+            <SettingsRow
+              icon="notifications-outline"
+              title="Notification"
+              subtitle="Manage alerts & reminders"
+              trailing="chevron"
+              onPress={() => router.push('/notifications')}
+            />
+          ) : null}
           <SettingsRow
             icon={themePreference === 'dark' ? 'moon' : 'moon-outline'}
             title="Dark mode"

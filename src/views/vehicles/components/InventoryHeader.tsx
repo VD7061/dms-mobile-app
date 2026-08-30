@@ -8,6 +8,8 @@ type ViewMode = 'card' | 'compact';
 type InventoryHeaderProps = {
   totalCount: number;
   onAddPress?: () => void;
+  /** Hidden rather than disabled: an action you can never take should not be there. */
+  canAdd?: boolean;
   viewMode?: ViewMode;
   onViewModeChange?: (mode: ViewMode) => void;
 };
@@ -15,6 +17,7 @@ type InventoryHeaderProps = {
 export function InventoryHeader({
   totalCount,
   onAddPress,
+  canAdd = true,
   viewMode = 'card',
   onViewModeChange,
 }: InventoryHeaderProps) {
@@ -43,14 +46,16 @@ export function InventoryHeader({
             color={colors['on-secondary']}
           />
         </Pressable>
-        <Pressable
-          onPress={onAddPress}
-          style={({ pressed }) => [
-            styles.actionButton,
-            { backgroundColor: actionBackground, opacity: pressed ? 0.85 : 1 },
-          ]}>
-          <Ionicons name="add" size={28} color={colors.primary} />
-        </Pressable>
+        {canAdd ? (
+          <Pressable
+            onPress={onAddPress}
+            style={({ pressed }) => [
+              styles.actionButton,
+              { backgroundColor: actionBackground, opacity: pressed ? 0.85 : 1 },
+            ]}>
+            <Ionicons name="add" size={28} color={colors.primary} />
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );

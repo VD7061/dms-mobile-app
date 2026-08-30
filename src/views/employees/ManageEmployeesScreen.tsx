@@ -17,7 +17,7 @@ import { listMembers, addMember, removeMember, updateMemberRole } from '@/servic
 import { resolvePrimaryShowroomId } from '@/utils/showroom';
 import { SkeletonBox, BackButton, BottomSheet } from '@/components/ui';
 import { useTabDataFetch } from '@/hooks/useTabDataFetch';
-import { useAuthStore } from '@/store';
+import { PERMISSIONS, usePermissions, type PermissionCheck } from '@/permissions';
 
 type Role = 'employee' | 'manager';
 
@@ -38,7 +38,7 @@ type MembersResponse = {
 export function ManageEmployeesScreen() {
   const { colors } = useTheme();
   const { width: screenWidth } = useWindowDimensions();
-  const { phoneNumber: currentPhoneNumber } = useAuthStore();
+  const { can } = usePermissions();
   const [employees, setEmployees] = useState<Member[]>([]);
   const [showAddSheet, setShowAddSheet] = useState(false);
   const [name, setName] = useState('');
@@ -191,17 +191,19 @@ export function ManageEmployeesScreen() {
         </Text>
 
         {/* Add Button */}
-        <Pressable
-          onPress={() => setShowAddSheet(true)}
-          style={({ pressed }) => [
-            styles.addButton,
-            { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 },
-          ]}>
-          <Ionicons name="add" size={24} color={colors['on-primary']} />
-          <Text style={[styles.addButtonText, { color: colors['on-primary'] }]}>
-            Add Employee
-          </Text>
-        </Pressable>
+        {can(PERMISSIONS.EMPLOYEE_CREATE) ? (
+          <Pressable
+            onPress={() => setShowAddSheet(true)}
+            style={({ pressed }) => [
+              styles.addButton,
+              { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 },
+            ]}>
+            <Ionicons name="add" size={24} color={colors['on-primary']} />
+            <Text style={[styles.addButtonText, { color: colors['on-primary'] }]}>
+              Add Employee
+            </Text>
+          </Pressable>
+        ) : null}
 
         {isLoading ? (
           <>
@@ -237,7 +239,7 @@ export function ManageEmployeesScreen() {
                   editingRole={editingRole}
                   onSetEditingMember={setEditingMemberId}
                   onSetEditingRole={setEditingRole}
-                  currentPhoneNumber={currentPhoneNumber}
+                  can={can}
                 />
               </View>
             ))}
@@ -548,7 +550,7 @@ function EmployeeCard({
   editingRole,
   onSetEditingMember,
   onSetEditingRole,
-  currentPhoneNumber,
+  can,
 }: {
   employee: Member;
   onDelete: (employeeId: number, employeeName: string) => void;
@@ -557,13 +559,15 @@ function EmployeeCard({
   editingRole: Role;
   onSetEditingMember: (id: number | null) => void;
   onSetEditingRole: (role: Role) => void;
-  currentPhoneNumber: string;
+  can: PermissionCheck['can'];
 }) {
   const { colors } = useTheme();
   const roleText = employee.role ? employee.role.charAt(0).toUpperCase() + employee.role.slice(1) : 'Staff';
   const isEditing = editingMemberId === employee.user_id;
-  const isCurrentUser = currentPhoneNumber === employee.phone_number;
-  const canEdit = !isCurrentUser;
+  // The policies behind these decide the rest: not yourself, not the owner, and
+  // a manager may only act on employees.
+  const canEditRole = can(PERMISSIONS.EMPLOYEE_UPDATE, employee);
+  const canDelete = can(PERMISSIONS.EMPLOYEE_DELETE, employee);
 
   return (
     <View
@@ -647,40 +651,31 @@ function EmployeeCard({
       </View>
 
       <View style={styles.employeeActions}>
-        <Pressable
-          disabled={!canEdit}
-          onPress={() => {
-            if (!canEdit) return;
-            if (isEditing) {
-              onSetEditingMember(null);
-            } else {
-              onSetEditingMember(employee.user_id);
-              onSetEditingRole((employee.role as Role) || 'employee');
-            }
-          }}
-          style={({ pressed }) => [{ opacity: pressed && canEdit ? 0.6 : canEdit ? 1 : 0.3 }]}>
-          <Ionicons
-            name={isEditing ? 'close' : 'pencil-outline'}
-            size={20}
-            color={canEdit ? colors.primary : colors['on-surface-variant']}
-          />
-        </Pressable>
-        <Pressable
-          disabled={!canEdit}
-          onPress={() => {
-            if (!canEdit) return;
-            onDelete(employee.user_id, employee.name || 'Employee');
-          }}
-          style={({ pressed }) => [
-            styles.deleteButton,
-            { opacity: pressed && canEdit ? 0.6 : canEdit ? 1 : 0.3 },
-          ]}>
-          <Ionicons
-            name="trash-outline"
-            size={20}
-            color={canEdit ? colors.error : colors['on-surface-variant']}
-          />
-        </Pressable>
+        {canEditRole ? (
+          <Pressable
+            onPress={() => {
+              if (isEditing) {
+                onSetEditingMember(null);
+              } else {
+                onSetEditingMember(employee.user_id);
+                onSetEditingRole((employee.role as Role) || 'employee');
+              }
+            }}
+            style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}>
+            <Ionicons
+              name={isEditing ? 'close' : 'pencil-outline'}
+              size={20}
+              color={colors.primary}
+            />
+          </Pressable>
+        ) : null}
+        {canDelete ? (
+          <Pressable
+            onPress={() => onDelete(employee.user_id, employee.name || 'Employee')}
+            style={({ pressed }) => [styles.deleteButton, { opacity: pressed ? 0.6 : 1 }]}>
+            <Ionicons name="trash-outline" size={20} color={colors.error} />
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );
