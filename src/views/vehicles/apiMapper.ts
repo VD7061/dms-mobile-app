@@ -148,6 +148,24 @@ function formatExpenseAmount(amount: number) {
   return `₹${amount.toLocaleString('en-IN')}`;
 }
 
+function formatExpenseDate(dateString?: string) {
+  if (!dateString) {
+    return undefined;
+  }
+
+  const date = new Date(dateString);
+
+  if (Number.isNaN(date.getTime())) {
+    return undefined;
+  }
+
+  return date.toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
 function formatRupees(amount?: number | null) {
   if (amount === undefined || amount === null) {
     return '—';
@@ -269,7 +287,6 @@ export function mapApiVehicleToItem(vehicle: ApiVehicle): VehicleItem {
     chassisNumber: '',
     transmission: capitalize(vehicle.transmission_type),
     insuranceValidTill: '',
-    lotLocation: '',
     expenses: [],
     documents: [],
   };
@@ -305,10 +322,13 @@ export function mapApiVehicleDetailToItem(detail: ApiVehicleDetail): VehicleItem
     chassisNumber: '',
     transmission: capitalize(basic.transmission_type),
     insuranceValidTill: '',
-    lotLocation: '',
     expenses: (detail.expenses ?? []).map((expense) => ({
-      label: expense.description?.trim() || capitalize(expense.type),
+      id: expense.id,
+      category: capitalize(expense.type),
       amount: formatExpenseAmount(expense.amount),
+      paidTo: expense.paid_to?.trim() || undefined,
+      description: expense.description?.trim() || undefined,
+      date: formatExpenseDate(expense.date),
     })),
     documents: [],
   };

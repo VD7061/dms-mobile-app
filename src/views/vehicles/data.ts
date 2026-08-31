@@ -72,11 +72,10 @@ export const vehicleInventory: VehicleItem[] = [
     chassisNumber: 'MA3FJEB1S00123456',
     transmission: 'Manual',
     insuranceValidTill: 'Mar 2027',
-    lotLocation: 'Main Showroom',
     photoCount: 9,
     expenses: [
-      { label: 'Brake pad replacement', amount: '₹3,200' },
-      { label: 'Painting & Polish', amount: '₹5,300' },
+      { id: 1, category: 'Brake pad replacement', amount: '₹3,200' },
+      { id: 2, category: 'Painting & Polish', amount: '₹5,300' },
     ],
     documents: [
       { label: 'RC Book', status: 'complete' },
@@ -103,10 +102,9 @@ export const vehicleInventory: VehicleItem[] = [
     chassisNumber: 'MALBM51RLKM567812',
     transmission: 'Manual',
     insuranceValidTill: 'Jan 2027',
-    lotLocation: 'Main Showroom',
     expenses: [
-      { label: 'Interior cleaning', amount: '₹1,800' },
-      { label: 'Tyre alignment', amount: '₹2,200' },
+      { id: 3, category: 'Interior cleaning', amount: '₹1,800' },
+      { id: 4, category: 'Tyre alignment', amount: '₹2,200' },
     ],
     documents: [
       { label: 'RC Book', status: 'complete' },
@@ -133,10 +131,9 @@ export const vehicleInventory: VehicleItem[] = [
     chassisNumber: 'MAKGM662J90124567',
     transmission: 'Manual',
     insuranceValidTill: 'Aug 2026',
-    lotLocation: 'Workshop Bay',
     expenses: [
-      { label: 'Suspension work', amount: '₹6,800' },
-      { label: 'Dent repair', amount: '₹4,900' },
+      { id: 5, category: 'Suspension work', amount: '₹6,800' },
+      { id: 6, category: 'Dent repair', amount: '₹4,900' },
     ],
     documents: [
       { label: 'RC Book', status: 'complete' },
@@ -163,10 +160,9 @@ export const vehicleInventory: VehicleItem[] = [
     chassisNumber: 'MAT627165MG345612',
     transmission: 'Manual',
     insuranceValidTill: 'May 2027',
-    lotLocation: 'Main Showroom',
     expenses: [
-      { label: 'Polish', amount: '₹2,500' },
-      { label: 'Seat cover', amount: '₹3,800' },
+      { id: 7, category: 'Polish', amount: '₹2,500' },
+      { id: 8, category: 'Seat cover', amount: '₹3,800' },
     ],
     documents: [
       { label: 'RC Book', status: 'complete' },
@@ -193,10 +189,9 @@ export const vehicleInventory: VehicleItem[] = [
     chassisNumber: 'ME3U3S5CML778812',
     transmission: 'Manual',
     insuranceValidTill: 'Dec 2026',
-    lotLocation: 'Bike Section',
     expenses: [
-      { label: 'Chain service', amount: '₹1,200' },
-      { label: 'Polish', amount: '₹900' },
+      { id: 9, category: 'Chain service', amount: '₹1,200' },
+      { id: 10, category: 'Polish', amount: '₹900' },
     ],
     documents: [
       { label: 'RC Book', status: 'complete' },
@@ -223,10 +218,9 @@ export const vehicleInventory: VehicleItem[] = [
     chassisNumber: 'MD626AG42N334456',
     transmission: 'Automatic',
     insuranceValidTill: 'Jul 2027',
-    lotLocation: 'Service Area',
     expenses: [
-      { label: 'Brake service', amount: '₹1,600' },
-      { label: 'Battery check', amount: '₹700' },
+      { id: 11, category: 'Brake service', amount: '₹1,600' },
+      { id: 12, category: 'Battery check', amount: '₹700' },
     ],
     documents: [
       { label: 'RC Book', status: 'complete' },

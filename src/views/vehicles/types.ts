@@ -32,15 +32,19 @@ export type VehicleItem = {
   chassisNumber: string;
   transmission: string;
   insuranceValidTill: string;
-  lotLocation: string;
   photoCount?: number;
   expenses: VehicleExpense[];
   documents: VehicleDocument[];
 };
 
 export type VehicleExpense = {
-  label: string;
+  id: number;
+  /** The expense type, title-cased for display — "Repair", "Insurance". */
+  category: string;
   amount: string;
+  paidTo?: string;
+  description?: string;
+  date?: string;
 };
 
 export type VehicleDocument = {

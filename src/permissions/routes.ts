@@ -19,6 +19,7 @@ export const ROUTE_PERMISSIONS: Record<string, Permission | null> = {
   '/employee/add': PERMISSIONS.EMPLOYEE_CREATE,
   '/showroom/edit': PERMISSIONS.SHOWROOM_UPDATE,
   '/vehicle/add': PERMISSIONS.VEHICLE_CREATE,
+  '/vehicle/expense/[id]': PERMISSIONS.EXPENSE_CREATE,
   '/notifications': PERMISSIONS.NOTIFICATION_READ,
 };
 

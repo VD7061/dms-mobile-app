@@ -124,6 +124,22 @@ export function VehicleDetailsScreen({ vehicleId }: VehicleDetailsScreenProps) {
   const totalPhotos = vehicle.photoCount ?? PHOTO_CHIP_COUNT;
   const visibleChipCount = Math.min(totalPhotos, PHOTO_CHIP_COUNT);
   const extraPhotos = Math.max(totalPhotos - PHOTO_CHIP_COUNT, 0);
+  // Shared by the action tile and the Add button on the expenses card so the two
+  // entry points cannot drift. Undefined when the user may not add expenses,
+  // which is what hides both.
+  const openAddExpense = can(PERMISSIONS.EXPENSE_CREATE)
+    ? () =>
+        router.push({
+          pathname: '/vehicle/expense/[id]',
+          // Carried along so the screen can name the vehicle without a second
+          // fetch just to render its header card.
+          params: {
+            id: vehicle.id,
+            name: vehicle.name,
+            registration: vehicle.registration,
+          },
+        })
+    : undefined;
   // Every action here writes, so a read-only viewer gets the detail page with no
   // action row at all rather than a row of dead buttons.
   const actionItems = can(PERMISSIONS.VEHICLE_UPDATE)
@@ -136,7 +152,7 @@ export function VehicleDetailsScreen({ vehicleId }: VehicleDetailsScreenProps) {
         },
         { label: 'Change State', icon: 'swap-horizontal' as const },
         { label: 'Sell', icon: 'tag-outline' as const },
-        { label: 'Add Expense', icon: 'plus' as const },
+        ...(openAddExpense ? [{ label: 'Add Expense', icon: 'plus' as const, onPress: openAddExpense }] : []),
       ]
     : [];
 
@@ -269,21 +285,6 @@ export function VehicleDetailsScreen({ vehicleId }: VehicleDetailsScreenProps) {
           ))}
         </View>
 
-        <View style={[styles.locationCard, { backgroundColor: chipBackground, borderColor }]}>
-          <View>
-            <Text style={[styles.specLabel, { color: colors['on-surface'] }]}>
-              Current location
-            </Text>
-            <View style={styles.locationValue}>
-              <MaterialCommunityIcons name="map-marker" size={15} color={colors['on-surface']} />
-              <Text style={[styles.locationText, { color: colors['on-surface'] }]}>
-                {vehicle.lotLocation}
-              </Text>
-            </View>
-          </View>
-          <MaterialCommunityIcons name="chevron-right" size={26} color={colors['on-surface']} />
-        </View>
-
         <Text style={[styles.sectionKicker, { color: colors['on-surface-variant'] }]}>MORE INFO</Text>
         <View style={[styles.infoCard, { backgroundColor: outlineCardBackground, borderColor }]}>
           <DetailRow label="Engine number" value={vehicle.engineNumber} showDivider dividerColor={dividerColor} />
@@ -293,7 +294,7 @@ export function VehicleDetailsScreen({ vehicleId }: VehicleDetailsScreenProps) {
           <DetailRow label="Insurance valid till" value={vehicle.insuranceValidTill} />
         </View>
 
-        <ExpenseSection expenses={vehicle.expenses} />
+        <ExpenseSection expenses={vehicle.expenses} onAdd={openAddExpense} />
 
         <Text style={[styles.sectionKicker, { color: colors['on-surface-variant'] }]}>DOCUMENTS</Text>
         <View style={styles.documentList}>
@@ -352,7 +353,13 @@ function DetailRow({
   );
 }
 
-function ExpenseSection({ expenses }: { expenses: VehicleExpense[] }) {
+function ExpenseSection({
+  expenses,
+  onAdd,
+}: {
+  expenses: VehicleExpense[];
+  onAdd?: () => void;
+}) {
   const { colors } = useTheme();
   const total = expenses.reduce((sum, expense) => sum + parseRupeeAmount(expense.amount), 0);
 
@@ -364,21 +371,72 @@ function ExpenseSection({ expenses }: { expenses: VehicleExpense[] }) {
       ]}>
       <View style={styles.expenseHeader}>
         <Text style={[styles.sectionTitle, { color: colors['on-surface'] }]}>Vehicle Expenses</Text>
-        <View style={[styles.addSmallButton, { backgroundColor: colors['surface-container-high'] }]}>
-          <MaterialCommunityIcons name="plus" size={12} color={colors.primary} />
-          <Text style={[styles.addSmallText, { color: colors.primary }]}>Add</Text>
-        </View>
+        {onAdd ? (
+          <Pressable
+            onPress={onAdd}
+            hitSlop={8}
+            style={({ pressed }) => [
+              styles.addSmallButton,
+              { backgroundColor: colors['surface-container-high'], opacity: pressed ? 0.7 : 1 },
+            ]}>
+            <MaterialCommunityIcons name="plus" size={12} color={colors.primary} />
+            <Text style={[styles.addSmallText, { color: colors.primary }]}>Add</Text>
+          </Pressable>
+        ) : null}
       </View>
-      {expenses.map((expense) => (
-        <DetailRow
-          key={expense.label}
-          label={expense.label}
-          value={expense.amount}
-          showDivider
-          dividerColor={colors.primary}
-        />
-      ))}
+      {expenses.length === 0 ? (
+        <Text style={[styles.expenseEmpty, { color: colors['on-surface-variant'] }]}>
+          No expenses logged for this vehicle yet.
+        </Text>
+      ) : (
+        expenses.map((expense) => (
+          // Keyed by id, not by text: several expenses can share a description
+          // and duplicate keys make React reuse the wrong rows.
+          <ExpenseRow key={expense.id} expense={expense} dividerColor={colors.primary} />
+        ))
+      )}
       <DetailRow label="Total expenses" value={formatRupeeAmount(total)} valueColor={colors.error} />
+    </View>
+  );
+}
+
+function ExpenseRow({
+  expense,
+  dividerColor,
+}: {
+  expense: VehicleExpense;
+  dividerColor: string;
+}) {
+  const { colors } = useTheme();
+  // "City Motors · 20 Jun 2026", dropping either half when it is missing.
+  const meta = [expense.paidTo, expense.date].filter(Boolean).join(' · ');
+
+  return (
+    <View
+      style={[
+        styles.expenseRow,
+        { borderBottomColor: dividerColor, borderBottomWidth: StyleSheet.hairlineWidth },
+      ]}>
+      {/* minWidth 0 lets a long description shrink instead of pushing the
+          amount out of the row entirely. */}
+      <View style={styles.expenseRowText}>
+        <Text style={[styles.expenseCategory, { color: colors['on-surface'] }]} numberOfLines={1}>
+          {expense.category}
+        </Text>
+        {meta ? (
+          <Text style={[styles.expenseMeta, { color: colors['on-surface-variant'] }]} numberOfLines={1}>
+            {meta}
+          </Text>
+        ) : null}
+        {expense.description ? (
+          <Text
+            style={[styles.expenseDescription, { color: colors['on-surface-variant'] }]}
+            numberOfLines={2}>
+            {expense.description}
+          </Text>
+        ) : null}
+      </View>
+      <Text style={[styles.expenseAmount, { color: colors['on-surface'] }]}>{expense.amount}</Text>
     </View>
   );
 }
@@ -683,27 +741,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginTop: 8,
   },
-  locationCard: {
-    borderRadius: 15,
-    borderWidth: 0.5,
-    minHeight: 63,
-    marginTop: 13,
-    paddingHorizontal: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  locationValue: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    marginTop: 7,
-  },
-  locationText: {
-    fontFamily: FontFamily.regular,
-    fontSize: 15,
-    lineHeight: 18,
-  },
   sectionKicker: {
     fontFamily: FontFamily.medium,
     fontSize: 14,
@@ -734,12 +771,16 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.regular,
     fontSize: 14,
     lineHeight: 17,
+    // Without these a long label takes the whole row and pushes the value
+    // off the edge instead of wrapping.
+    flexShrink: 1,
+    minWidth: 0,
   },
   detailValue: {
     fontFamily: FontFamily.medium,
     fontSize: 15,
     lineHeight: 18,
-    flexShrink: 1,
+    flexShrink: 0,
     textAlign: 'right',
   },
   expenseCard: {
@@ -768,6 +809,48 @@ const styles = StyleSheet.create({
   addSmallText: {
     fontFamily: Typography.screenTitle.fontFamily,
     fontSize: 12,
+  },
+  expenseRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+  },
+  expenseRowText: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
+  },
+  expenseCategory: {
+    fontFamily: Typography.screenTitle.fontFamily,
+    fontSize: 14,
+    lineHeight: 18,
+  },
+  expenseMeta: {
+    fontFamily: FontFamily.regular,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  expenseDescription: {
+    fontFamily: FontFamily.regular,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  expenseAmount: {
+    fontFamily: Typography.screenTitle.fontFamily,
+    fontSize: 14,
+    lineHeight: 18,
+    flexShrink: 0,
+    fontVariant: ['tabular-nums'],
+  },
+  expenseEmpty: {
+    fontFamily: FontFamily.regular,
+    fontSize: 13,
+    lineHeight: 18,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
   },
   documentList: {
     gap: 10,

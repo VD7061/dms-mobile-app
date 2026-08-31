@@ -171,6 +171,7 @@ Two things to know:
 | `employee:create` | – | ✓ | ✓ |
 | `employee:update` | – | – | ✓ |
 | `employee:delete` | – | ✓ | ✓ |
+| `expense:create` | – | ✓ | ✓ |
 | `showroom:read` | ✓ | ✓ | ✓ |
 | `showroom:update` | – | ✓ | ✓ |
 | `reports:read` | – | ✓ | ✓ |
