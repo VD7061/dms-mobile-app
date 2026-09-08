@@ -55,6 +55,7 @@ export const createShowroomApi = {
       message: 'showroom created',
       data: {
         id: 1,
+        showroom_id: 'SR001',
         name: 'My Showroom',
         showroom_logo: '1/1/20240101120000.jpg',
         showroom_banner: null,

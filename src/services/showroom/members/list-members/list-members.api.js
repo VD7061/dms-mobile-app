@@ -42,7 +42,7 @@ export const listMembersApi = {
     status: 200,
     body: {
       success: true,
-      message: 'members retrieved',
+      message: 'members fetched',
       data: {
         members: [
           {

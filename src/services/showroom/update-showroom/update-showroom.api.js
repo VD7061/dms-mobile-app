@@ -72,6 +72,7 @@ export const updateShowroomApi = {
       message: 'showroom updated',
       data: {
         id: 1,
+        showroom_id: 'SR001',
         name: 'Updated Showroom Name',
         showroom_logo: null,
         showroom_banner: '1/1/20240101120000.jpg',
