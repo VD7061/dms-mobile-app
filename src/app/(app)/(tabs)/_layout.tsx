@@ -59,14 +59,12 @@ export default function TabsLayout() {
           paddingTop: 18,
           paddingBottom: bottomPadding,
         },
-        animationEnabled: true,
       }}>
       <Tabs.Screen
         name="index"
         options={{
           title: 'Dashboard',
           tabBarIcon: renderTabIcon('grid'),
-          unmountOnBlur: false,
           href: tabHref('index'),
         }}
       />
@@ -75,17 +73,15 @@ export default function TabsLayout() {
         options={{
           title: 'Vehicles',
           tabBarIcon: renderTabIcon('car'),
-          unmountOnBlur: false,
           href: tabHref('vehicles'),
         }}
       />
       <Tabs.Screen
-        name="reports"
+        name="sales"
         options={{
-          title: 'Reports',
+          title: 'Sales',
           tabBarIcon: renderTabIcon('receipt'),
-          unmountOnBlur: false,
-          href: tabHref('reports'),
+          href: tabHref('sales'),
         }}
       />
       <Tabs.Screen
@@ -93,7 +89,6 @@ export default function TabsLayout() {
         options={{
           title: 'Tags',
           tabBarIcon: renderTabIcon('pricetag'),
-          unmountOnBlur: false,
           href: tabHref('tags'),
         }}
       />
@@ -102,7 +97,6 @@ export default function TabsLayout() {
         options={{
           title: 'Account',
           tabBarIcon: renderTabIcon('person'),
-          unmountOnBlur: false,
         }}
       />
     </Tabs>

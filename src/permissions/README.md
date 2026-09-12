@@ -128,7 +128,7 @@ Both steps, always. The manifest exists so a screen can't be visible-but-unguard
 
 ## How to: add a tab
 
-1. Add a row to `TAB_PERMISSIONS` keyed by the file name (`vehicles`, `reports`, …).
+1. Add a row to `TAB_PERMISSIONS` keyed by the file name (`vehicles`, `sales`, …).
 2. Pass `href: tabHref('yourtab')` in `(tabs)/_layout.tsx`.
 3. Wrap the screen in `RequirePermission`.
 
@@ -172,6 +172,8 @@ Two things to know:
 | `employee:update` | – | – | ✓ |
 | `employee:delete` | – | ✓ | ✓ |
 | `expense:create` | – | ✓ | ✓ |
+| `sale:read` | – | ✓ | ✓ |
+| `sale:create` | – | ✓ | ✓ |
 | `showroom:read` | ✓ | ✓ | ✓ |
 | `showroom:update` | – | ✓ | ✓ |
 | `reports:read` | – | ✓ | ✓ |
@@ -181,6 +183,10 @@ Two things to know:
 
 This mirrors what the API enforces: managers may add members and edit the showroom,
 only owners may change a member's role.
+
+`reports:read` is granted but currently drives no screen — the Reports tab was
+replaced by the Sales Panel (`sale:read`). It is kept for a reporting screen
+later rather than being removed and re-added.
 
 **What each role sees:**
 

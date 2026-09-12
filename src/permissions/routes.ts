@@ -9,7 +9,7 @@ import { PERMISSIONS, type Permission } from './permissions';
 export const TAB_PERMISSIONS: Record<string, Permission | null> = {
   index: PERMISSIONS.DASHBOARD_READ,
   vehicles: PERMISSIONS.VEHICLE_READ,
-  reports: PERMISSIONS.REPORTS_READ,
+  sales: PERMISSIONS.SALE_READ,
   tags: PERMISSIONS.TAGS_READ,
   account: null,
 };
@@ -20,6 +20,8 @@ export const ROUTE_PERMISSIONS: Record<string, Permission | null> = {
   '/showroom/edit': PERMISSIONS.SHOWROOM_UPDATE,
   '/vehicle/add': PERMISSIONS.VEHICLE_CREATE,
   '/vehicle/expense/[id]': PERMISSIONS.EXPENSE_CREATE,
+  '/vehicle/sell/[id]': PERMISSIONS.SALE_CREATE,
+  '/vehicle/documents/[id]': PERMISSIONS.VEHICLE_UPDATE,
   '/notifications': PERMISSIONS.NOTIFICATION_READ,
 };
 

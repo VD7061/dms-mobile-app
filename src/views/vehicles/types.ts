@@ -19,6 +19,8 @@ export type VehicleItem = {
   price: string;
   buyingPrice: string;
   askingPrice: string;
+  /** Raw price_tag, for places that need to format or compare it themselves. */
+  askingPriceAmount?: number;
   status: VehicleStatus;
   meta: string;
   note: string;
@@ -35,6 +37,8 @@ export type VehicleItem = {
   photoCount?: number;
   expenses: VehicleExpense[];
   documents: VehicleDocument[];
+  /** Present only once the vehicle has been sold. */
+  sale?: VehicleSale;
 };
 
 export type VehicleExpense = {
@@ -47,9 +51,32 @@ export type VehicleExpense = {
   date?: string;
 };
 
+/**
+ * What a vehicle actually sold for, from the detail endpoint's `selling`
+ * section. Absent until the vehicle is sold.
+ *
+ * `soldPrice` is the negotiated price the buyer paid — distinct from
+ * `askingPrice`, which is only what the vehicle was tagged at.
+ */
+export type VehicleSale = {
+  soldPrice: string;
+  soldPriceAmount: number;
+  saleDate: string;
+  paymentMode: string;
+  buyerName: string;
+  buyerPhone: string;
+  buyerAddress: string;
+  soldBy: string;
+  remarks: string;
+};
+
 export type VehicleDocument = {
+  /** The server's document_type, so a row can link straight to its slot. */
+  type: string;
   label: string;
   status: 'complete' | 'missing';
+  /** How many files are stored for this type — a document can have several pages. */
+  count: number;
 };
 
 export type VehicleCategoryTab = {

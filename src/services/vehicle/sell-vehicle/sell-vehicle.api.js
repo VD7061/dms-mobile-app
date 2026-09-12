@@ -14,7 +14,10 @@ export const sellVehicleApi = {
   path: sellVehicleEndpoint,
   auth: 'protected',
   description:
-    'Protected endpoint (requires Bearer token). Records the sale of a vehicle with customer details and payment information.',
+    'Protected endpoint (requires Bearer token). Records the sale of a vehicle with customer details and payment information. ' +
+    'Required: sale_price (> 0), payment_mode, customer.first_name, customer.last_name, customer.phone_number, customer.address. ' +
+    'sale_date is optional and must be a bare calendar date (YYYY-MM-DD) — a full ISO instant is rejected. ' +
+    'payment_mode must be one of: cash, cheque, bank_transfer, online, credit, debit, other.',
   headers: [
     {
       name: 'Authorization',
@@ -31,8 +34,8 @@ export const sellVehicleApi = {
   ],
   requestBodyExample: {
     sale_price: 750000,
-    sale_date: '2024-01-15T14:30:00Z',
-    payment_mode: 'credit_card',
+    sale_date: '2024-01-15',
+    payment_mode: 'credit',
     remarks: 'Sold to customer',
     customer: {
       first_name: 'John',
@@ -50,8 +53,8 @@ export const sellVehicleApi = {
 --header 'Content-Type: application/json' \\
 --data '{
   "sale_price": 750000,
-  "sale_date": "2024-01-15T14:30:00Z",
-  "payment_mode": "credit_card",
+  "sale_date": "2024-01-15",
+  "payment_mode": "credit",
   "remarks": "Sold to customer",
   "customer": {
     "first_name": "John",
@@ -73,8 +76,8 @@ export const sellVehicleApi = {
         id: 1,
         vehicle_id: 1,
         sale_price: 750000,
-        sale_date: '2024-01-15T14:30:00Z',
-        payment_mode: 'credit_card',
+        sale_date: '2024-01-15',
+        payment_mode: 'credit',
         remarks: 'Sold to customer',
         customer: {
           id: 1,

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import {
@@ -18,7 +18,8 @@ import { FontFamily, Grid, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { PERMISSIONS, usePermissions } from '@/permissions';
 import { ApiError, getVehicle } from '@/services';
-import { mapApiVehicleDetailToItem, type ApiVehicleDetail } from './apiMapper';
+import { mapApiVehicleDetailToItem, toApiStatus, type ApiVehicleDetail } from './apiMapper';
+import { ChangeStatusSheet } from './components/ChangeStatusSheet';
 import type { VehicleDocument, VehicleExpense, VehicleItem, VehicleStatus } from './types';
 
 type VehicleDetailsScreenProps = {
@@ -37,49 +38,67 @@ export function VehicleDetailsScreen({ vehicleId }: VehicleDetailsScreenProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [isStatusSheetOpen, setIsStatusSheetOpen] = useState(false);
+
+  /**
+   * `silent` refetches in place after a write — a status change should update
+   * the badge without throwing the whole screen back to a spinner. A silent
+   * refetch also keeps the last good vehicle on screen if it fails, since the
+   * write itself already succeeded and reports its own errors.
+   */
+  const loadVehicle = useCallback(
+    async (options?: { silent?: boolean; isCancelled?: () => boolean }) => {
+      const silent = options?.silent ?? false;
+      const isCancelled = options?.isCancelled ?? (() => false);
+
+      if (!silent) {
+        setIsLoading(true);
+        setErrorMessage('');
+        setSelectedImageIndex(0);
+      }
+
+      try {
+        const response = await getVehicle({ vehicleId });
+
+        if (isCancelled()) {
+          return;
+        }
+
+        const responseData = response as unknown as { data?: ApiVehicleDetail };
+        const data = responseData?.data ?? (responseData as unknown as ApiVehicleDetail);
+        setVehicle(mapApiVehicleDetailToItem(data));
+      } catch (error) {
+        if (isCancelled() || silent) {
+          return;
+        }
+
+        const notFound = error instanceof ApiError && error.status === 404;
+        setErrorMessage(
+          notFound
+            ? 'This vehicle may have been removed from inventory.'
+            : error instanceof Error
+              ? error.message
+              : 'Unable to load this vehicle.'
+        );
+      } finally {
+        if (!silent && !isCancelled()) {
+          setIsLoading(false);
+        }
+      }
+    },
+    [vehicleId]
+  );
 
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
 
-      setIsLoading(true);
-      setErrorMessage('');
-      setSelectedImageIndex(0);
-
-      getVehicle({ vehicleId })
-        .then((response) => {
-          if (cancelled) {
-            return;
-          }
-
-          const responseData = response as unknown as { data?: ApiVehicleDetail };
-          const data = responseData?.data ?? (responseData as unknown as ApiVehicleDetail);
-          setVehicle(mapApiVehicleDetailToItem(data));
-        })
-        .catch((error) => {
-          if (cancelled) {
-            return;
-          }
-
-          const notFound = error instanceof ApiError && error.status === 404;
-          setErrorMessage(
-            notFound
-              ? 'This vehicle may have been removed from inventory.'
-              : error instanceof Error
-                ? error.message
-                : 'Unable to load this vehicle.'
-          );
-        })
-        .finally(() => {
-          if (!cancelled) {
-            setIsLoading(false);
-          }
-        });
+      loadVehicle({ isCancelled: () => cancelled });
 
       return () => {
         cancelled = true;
       };
-    }, [vehicleId])
+    }, [loadVehicle])
   );
 
   if (isLoading) {
@@ -120,7 +139,42 @@ export function VehicleDetailsScreen({ vehicleId }: VehicleDetailsScreenProps) {
   const borderColor = colors.primary;
   const dividerColor = colors.primary;
   const specs = getVehicleSpecs(vehicle);
-  const profit = getProfitNote(vehicle.buyingPrice, vehicle.askingPrice);
+  // Optional sale fields are dropped rather than rendered as a label with an
+  // empty value, so the card only ever shows what was actually recorded.
+  const askingDelta = getAskingDelta(vehicle);
+  const saleRows = vehicle.sale
+    ? [
+        // Kept alongside the sale so a sold vehicle still shows what it was
+        // tagged at — formatted in full rupees to match, since `askingPrice`
+        // itself is the abbreviated "₹5.5L" form used on cards.
+        {
+          label: 'Asking price',
+          value:
+            vehicle.askingPriceAmount !== undefined
+              ? formatRupeeAmount(vehicle.askingPriceAmount)
+              : '',
+        },
+        { label: 'Sold for', value: vehicle.sale.soldPrice },
+        {
+          label: 'Difference',
+          value: askingDelta,
+          valueColor: askingDelta.includes('below') ? colors.error : colors.tertiary,
+        },
+        { label: 'Sale date', value: vehicle.sale.saleDate },
+        { label: 'Payment mode', value: vehicle.sale.paymentMode },
+        { label: 'Buyer', value: vehicle.sale.buyerName },
+        { label: 'Buyer phone', value: vehicle.sale.buyerPhone },
+        { label: 'Buyer address', value: vehicle.sale.buyerAddress },
+        { label: 'Sold by', value: vehicle.sale.soldBy },
+        { label: 'Remarks', value: vehicle.sale.remarks },
+      ].filter((row) => row.value.trim().length > 0)
+    : [];
+
+  // Against the real sale once there is one, so a sold vehicle stops reporting
+  // the margin it might have made.
+  const profit = vehicle.sale
+    ? getProfitNote(vehicle.buyingPrice, vehicle.sale.soldPrice)
+    : getProfitNote(vehicle.buyingPrice, vehicle.askingPrice);
   const totalPhotos = vehicle.photoCount ?? PHOTO_CHIP_COUNT;
   const visibleChipCount = Math.min(totalPhotos, PHOTO_CHIP_COUNT);
   const extraPhotos = Math.max(totalPhotos - PHOTO_CHIP_COUNT, 0);
@@ -140,6 +194,18 @@ export function VehicleDetailsScreen({ vehicleId }: VehicleDetailsScreenProps) {
           },
         })
     : undefined;
+  const openDocuments = can(PERMISSIONS.VEHICLE_UPDATE)
+    ? () =>
+        router.push({
+          pathname: '/vehicle/documents/[id]',
+          params: {
+            id: vehicle.id,
+            name: vehicle.name,
+            registration: vehicle.registration,
+          },
+        })
+    : undefined;
+
   // Every action here writes, so a read-only viewer gets the detail page with no
   // action row at all rather than a row of dead buttons.
   const actionItems = can(PERMISSIONS.VEHICLE_UPDATE)
@@ -150,8 +216,32 @@ export function VehicleDetailsScreen({ vehicleId }: VehicleDetailsScreenProps) {
           onPress: () =>
             router.push({ pathname: '/vehicle/edit/[id]', params: { id: vehicle.id } }),
         },
-        { label: 'Change State', icon: 'swap-horizontal' as const },
-        { label: 'Sell', icon: 'tag-outline' as const },
+        {
+          label: 'Change State',
+          icon: 'swap-horizontal' as const,
+          // A sold vehicle's state is settled by its sale record, so the tile
+          // goes inert rather than offering to move it back into the garage.
+          onPress:
+            vehicle.status === 'Sold' ? undefined : () => setIsStatusSheetOpen(true),
+        },
+        // Already-sold vehicles keep the tile visible but inert, the same way
+        // every other unavailable action on this row reads.
+        {
+          label: 'Sell',
+          icon: 'tag-outline' as const,
+          onPress:
+            can(PERMISSIONS.SALE_CREATE) && vehicle.status !== 'Sold'
+              ? () =>
+                  router.push({
+                    pathname: '/vehicle/sell/[id]',
+                    params: {
+                      id: vehicle.id,
+                      name: vehicle.name,
+                      registration: vehicle.registration,
+                    },
+                  })
+              : undefined,
+        },
         ...(openAddExpense ? [{ label: 'Add Expense', icon: 'plus' as const, onPress: openAddExpense }] : []),
       ]
     : [];
@@ -240,7 +330,11 @@ export function VehicleDetailsScreen({ vehicleId }: VehicleDetailsScreenProps) {
 
         <View style={styles.priceGrid}>
           <PriceCard label="Buying price" value={vehicle.buyingPrice} />
-          <PriceCard label="Asking price" value={vehicle.askingPrice} note={profit} />
+          {vehicle.sale ? (
+            <PriceCard label="Sold for" value={vehicle.sale.soldPrice} note={profit} />
+          ) : (
+            <PriceCard label="Asking price" value={vehicle.askingPrice} note={profit} />
+          )}
         </View>
 
         <View style={styles.actionsGrid}>
@@ -261,6 +355,26 @@ export function VehicleDetailsScreen({ vehicleId }: VehicleDetailsScreenProps) {
             </Pressable>
           ))}
         </View>
+
+        {saleRows.length > 0 ? (
+          <>
+            <Text style={[styles.sectionKicker, { color: colors['on-surface-variant'] }]}>
+              SALE DETAILS
+            </Text>
+            <View style={[styles.infoCard, { backgroundColor: outlineCardBackground, borderColor }]}>
+              {saleRows.map((row, index) => (
+                <DetailRow
+                  key={row.label}
+                  label={row.label}
+                  value={row.value}
+                  valueColor={row.valueColor}
+                  showDivider={index < saleRows.length - 1}
+                  dividerColor={dividerColor}
+                />
+              ))}
+            </View>
+          </>
+        ) : null}
 
         <View style={[styles.specPanel, { backgroundColor: outlineCardBackground, borderColor }]}>
           {specs.map((spec, index) => (
@@ -296,13 +410,36 @@ export function VehicleDetailsScreen({ vehicleId }: VehicleDetailsScreenProps) {
 
         <ExpenseSection expenses={vehicle.expenses} onAdd={openAddExpense} />
 
-        <Text style={[styles.sectionKicker, { color: colors['on-surface-variant'] }]}>DOCUMENTS</Text>
+        <View style={styles.documentsHeader}>
+          <Text style={[styles.sectionKicker, styles.documentsKicker, { color: colors['on-surface-variant'] }]}>
+            DOCUMENTS
+          </Text>
+          {openDocuments ? (
+            <Pressable onPress={openDocuments} hitSlop={8}>
+              <Text style={[styles.manageLink, { color: colors.primary }]}>Manage</Text>
+            </Pressable>
+          ) : null}
+        </View>
+
         <View style={styles.documentList}>
           {vehicle.documents.map((document) => (
-            <DocumentRow key={document.label} document={document} />
+            <DocumentRow
+              key={document.type}
+              document={document}
+              onPress={openDocuments}
+            />
           ))}
         </View>
+
       </ScrollView>
+
+      <ChangeStatusSheet
+        visible={isStatusSheetOpen}
+        onClose={() => setIsStatusSheetOpen(false)}
+        vehicleId={vehicle.id}
+        currentStatus={toApiStatus(vehicle.status)}
+        onUpdated={() => loadVehicle({ silent: true })}
+      />
     </SafeAreaView>
   );
 }
@@ -441,28 +578,45 @@ function ExpenseRow({
   );
 }
 
-function DocumentRow({ document }: { document: VehicleDocument }) {
+function DocumentRow({
+  document,
+  onPress,
+}: {
+  document: VehicleDocument;
+  /** Undefined for a viewer who may not edit — the row then just reports state. */
+  onPress?: () => void;
+}) {
   const { colors } = useTheme();
   const complete = document.status === 'complete';
 
   return (
-    <View
-      style={[
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress}
+      style={({ pressed }) => [
         styles.documentRow,
         { backgroundColor: colors['surface-container-lowest'], borderColor: colors.primary },
+        pressed && onPress ? styles.actionTilePressed : null,
       ]}>
       <View style={styles.documentTitle}>
         <MaterialCommunityIcons name="file-document-outline" size={18} color={colors.primary} />
-        <Text style={[styles.documentLabel, { color: colors['on-surface'] }]}>
-          {document.label}
-        </Text>
+        <View style={styles.documentTitleText}>
+          <Text style={[styles.documentLabel, { color: colors['on-surface'] }]}>
+            {document.label}
+          </Text>
+          <Text style={[styles.documentMeta, { color: colors['on-surface-variant'] }]}>
+            {complete
+              ? `${document.count} page${document.count === 1 ? '' : 's'} uploaded`
+              : 'Not uploaded'}
+          </Text>
+        </View>
       </View>
       <MaterialCommunityIcons
         name={complete ? 'check' : 'alert-outline'}
         size={19}
         color={complete ? colors.tertiary : colors.error}
       />
-    </View>
+    </Pressable>
   );
 }
 
@@ -479,6 +633,21 @@ function getVehicleSpecs(vehicle: VehicleItem) {
 
 function parseRupeeAmount(amount: string) {
   return Number(amount.replace(/[₹,]/g, ''));
+}
+
+/** Blank when there is nothing to compare, or when it sold at exactly the asking price. */
+function getAskingDelta(vehicle: VehicleItem) {
+  const asking = vehicle.askingPriceAmount;
+  const sold = vehicle.sale?.soldPriceAmount;
+
+  if (asking === undefined || sold === undefined || asking === sold) {
+    return '';
+  }
+
+  const difference = sold - asking;
+  const formatted = formatRupeeAmount(Math.abs(difference));
+
+  return difference < 0 ? `${formatted} below asking` : `${formatted} above asking`;
 }
 
 function formatRupeeAmount(amount: number) {
@@ -851,6 +1020,52 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     paddingHorizontal: 20,
     paddingBottom: 16,
+  },
+  documentsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  documentsKicker: {
+    flex: 1,
+  },
+  manageLink: {
+    ...Typography.caption,
+    fontFamily: FontFamily.medium,
+    fontSize: 12,
+  },
+  documentsPrompt: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 0.5,
+    borderRadius: 15,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+  },
+  documentsPromptText: {
+    flex: 1,
+    gap: 3,
+    minWidth: 0,
+  },
+  documentsPromptTitle: {
+    fontFamily: FontFamily.medium,
+    fontSize: 13,
+    lineHeight: 18,
+    includeFontPadding: false,
+  },
+  documentsPromptHint: {
+    ...Typography.caption,
+    fontSize: 11,
+  },
+  documentTitleText: {
+    flex: 1,
+    gap: 2,
+    minWidth: 0,
+  },
+  documentMeta: {
+    ...Typography.caption,
+    fontSize: 11,
   },
   documentList: {
     gap: 10,

@@ -14,7 +14,13 @@ export const addVehicleDocumentApi = {
   path: addVehicleDocumentEndpoint,
   auth: 'protected',
   description:
-    'Protected endpoint (requires Bearer token). Uploads a document for a vehicle. Supports multipart/form-data with document type and file.',
+    'Protected endpoint. Uploads ONE file against one document type; a multi-page document is one call per page with the same document_type. ' +
+    'Caller must be a member of the vehicle\'s showroom, else 404 VEHICLE_NOT_FOUND. ' +
+    'document_type must be one of: registration_certificate, insurance, pollution (trimmed and lowercased server-side). ' +
+    'File: jpg/jpeg/png/pdf, max 15 MB, and the whole multipart form is capped at 20 MB. ' +
+    'The type is validated from the FILENAME extension, not the content type — a part with no extension is rejected as INVALID_FILE_TYPE. ' +
+    'Uploading to a sold vehicle returns 422 VEHICLE_UPDATE_FORBIDDEN. ' +
+    'There is no delete endpoint for documents, so an uploaded file cannot be removed from the app.',
   headers: [
     {
       name: 'Authorization',

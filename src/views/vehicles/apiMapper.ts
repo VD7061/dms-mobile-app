@@ -1,4 +1,11 @@
-import type { VehicleCategory, VehicleItem, VehicleStatus } from './types';
+import { DOCUMENT_SLOTS } from './documents';
+import type {
+  VehicleCategory,
+  VehicleDocument,
+  VehicleItem,
+  VehicleSale,
+  VehicleStatus,
+} from './types';
 
 export type ApiVehicleStatus = 'garage' | 'inspection' | 'ready_for_sale' | 'sold';
 
@@ -90,6 +97,40 @@ export type ApiVehicleDetail = {
   } | null;
   expenses?: ApiVehicleExpense[] | null;
   images?: ApiVehicleImages | null;
+  /**
+   * Grouped by document type, e.g. `{ insurance: [{ id, url }] }`. URLs are
+   * signed and expire, so they are for viewing now, not for storing.
+   */
+  documents?: Record<string, { id: number; url: string }[] | undefined> | null;
+  /**
+   * Present only once the vehicle is sold. Note the customer's phone arrives as
+   * `phone` here, while the sale endpoint's own response calls the same value
+   * `phone_number` — the server is inconsistent, so both are read below.
+   */
+  selling?: {
+    sale_price?: number | null;
+    sale_date?: string | null;
+    payment_mode?: string | null;
+    receipt_url?: string | null;
+    remarks?: string | null;
+    customer?: {
+      first_name?: string | null;
+      last_name?: string | null;
+      email?: string | null;
+      phone?: string | null;
+      phone_number?: string | null;
+      address?: string | null;
+      city?: string | null;
+      state?: string | null;
+      pincode?: string | null;
+    } | null;
+    sold_by?: {
+      user_id?: number;
+      name?: string | null;
+      country_code?: string | null;
+      phone_number?: string | null;
+    } | null;
+  } | null;
 };
 
 export function categoryToApiGroupKey(category: VehicleCategory): keyof ApiVehicleListing {
@@ -118,6 +159,26 @@ function mapApiStatus(status?: ApiVehicleStatus | null): VehicleStatus {
   }
 
   return 'In Garage';
+}
+
+/**
+ * The inverse of `mapApiStatus`, for screens that need to hand the API back the
+ * status a vehicle is already in — the change-state sheet preselects with it.
+ */
+export function toApiStatus(status: VehicleStatus): ApiVehicleStatus {
+  if (status === 'Available') {
+    return 'ready_for_sale';
+  }
+
+  if (status === 'Sold') {
+    return 'sold';
+  }
+
+  if (status === 'Inspection') {
+    return 'inspection';
+  }
+
+  return 'garage';
 }
 
 function mapVehicleIcon(vehicleType: ApiVehicle['vehicle_type']): VehicleItem['icon'] {
@@ -274,6 +335,7 @@ export function mapApiVehicleToItem(vehicle: ApiVehicle): VehicleItem {
     price: askingPrice,
     buyingPrice,
     askingPrice,
+    askingPriceAmount: vehicle.pricing?.price_tag ?? undefined,
     status,
     meta: `${vehicle.year_of_manufacture} · ${formatUsageKm(vehicle.usage_km)} · ${capitalize(vehicle.fuel_type)}`,
     note: formatNote(status, vehicle.current_status?.started_at),
@@ -294,6 +356,59 @@ export function mapApiVehicleToItem(vehicle: ApiVehicle): VehicleItem {
 
 // The detail endpoint's `documents` shape isn't documented yet, so it's left
 // unmapped here just like the list mapper above.
+function formatFullRupees(amount: number) {
+  return `₹${amount.toLocaleString('en-IN')}`;
+}
+
+/**
+ * One row per document type the app supports, present or not.
+ *
+ * Built from the slot list rather than from the response keys so a missing
+ * document still shows as a gap to fill — a vehicle with no insurance should
+ * say so, not silently omit the row.
+ */
+function mapDocuments(documents: ApiVehicleDetail['documents']): VehicleDocument[] {
+  return DOCUMENT_SLOTS.map((slot) => {
+    const files = (documents?.[slot.type] ?? []).filter((file) => Boolean(file?.url));
+
+    return {
+      type: slot.type,
+      label: slot.label,
+      status: files.length > 0 ? ('complete' as const) : ('missing' as const),
+      count: files.length,
+    };
+  });
+}
+
+function mapSale(selling: ApiVehicleDetail['selling']): VehicleSale | undefined {
+  if (!selling || typeof selling.sale_price !== 'number') {
+    return undefined;
+  }
+
+  const customer = selling.customer ?? {};
+  const buyerName = [customer.first_name, customer.last_name]
+    .map((part) => part?.trim())
+    .filter(Boolean)
+    .join(' ');
+  const buyerAddress = [customer.address, customer.city, customer.state, customer.pincode]
+    .map((part) => part?.trim())
+    .filter(Boolean)
+    .join(', ');
+
+  return {
+    soldPrice: formatFullRupees(selling.sale_price),
+    soldPriceAmount: selling.sale_price,
+    saleDate: formatExpenseDate(selling.sale_date ?? undefined) ?? '',
+    // Stored as a snake_case enum ('bank_transfer'), shown as words.
+    paymentMode: (selling.payment_mode ?? '').split('_').filter(Boolean).map(capitalize).join(' '),
+    buyerName,
+    buyerPhone: (customer.phone ?? customer.phone_number ?? '').trim(),
+    buyerAddress,
+    soldBy: selling.sold_by?.name?.trim() ?? '',
+    remarks: selling.remarks?.trim() ?? '',
+  };
+}
+
 export function mapApiVehicleDetailToItem(detail: ApiVehicleDetail): VehicleItem {
   const basic = detail.basic;
   const status = mapApiStatus(basic.current_status?.status);
@@ -309,6 +424,7 @@ export function mapApiVehicleDetailToItem(detail: ApiVehicleDetail): VehicleItem
     price: askingPrice,
     buyingPrice,
     askingPrice,
+    askingPriceAmount: detail.pricing?.price_tag ?? undefined,
     status,
     meta: `${basic.year_of_manufacture} · ${formatUsageKm(basic.usage_km)} · ${capitalize(basic.fuel_type)}`,
     note: formatNote(status, basic.current_status?.started_at),
@@ -330,6 +446,7 @@ export function mapApiVehicleDetailToItem(detail: ApiVehicleDetail): VehicleItem
       description: expense.description?.trim() || undefined,
       date: formatExpenseDate(expense.date),
     })),
-    documents: [],
+    documents: mapDocuments(detail.documents),
+    sale: mapSale(detail.selling),
   };
 }
