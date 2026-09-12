@@ -3,11 +3,11 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { FontFamily, Grid, Typography } from '@/constants/theme';
+import { FontFamily, Grid } from '@/constants/theme';
 import { useLogout } from '@/hooks/useLogout';
 import { useTheme } from '@/hooks/useTheme';
 import { PERMISSIONS, usePermissions } from '@/permissions';
-import { getProfile, listMembers } from '@/services';
+import { getProfile } from '@/services';
 import { syncShowroomFromProfile } from '@/utils/showroom';
 import { useAuthStore, useThemeStore, type ThemePreference } from '@/store';
 
@@ -46,7 +46,6 @@ export default function AccountTab() {
   const themePreference = useThemeStore((s) => s.themePreference);
   const setThemePreference = useThemeStore((s) => s.setThemePreference);
   const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [employeeCount, setEmployeeCount] = useState<number | null>(null);
 
   const cycleThemePreference = () => {
     const nextIndex = (THEME_CYCLE.indexOf(themePreference) + 1) % THEME_CYCLE.length;
@@ -67,26 +66,7 @@ export default function AccountTab() {
 
         // Keeps showroom and role in step; a role change made elsewhere lands
         // the next time this screen loads.
-        const primaryShowroom = syncShowroomFromProfile(data ?? null);
-
-        // Members is an owner/manager endpoint; skip it rather than firing a
-        // request that comes back 403 for everyone else.
-        if (primaryShowroom && can(PERMISSIONS.EMPLOYEE_READ)) {
-          listMembers({ showroomId: primaryShowroom.showroom_id })
-            .then((membersResponse) => {
-              if (cancelled) {
-                return;
-              }
-
-              const total = (membersResponse as { data?: { total?: number } })?.data?.total;
-              setEmployeeCount(typeof total === 'number' ? total : null);
-            })
-            .catch(() => {
-              if (!cancelled) {
-                setEmployeeCount(null);
-              }
-            });
-        }
+        syncShowroomFromProfile(data ?? null);
       })
       .catch(() => {
         if (!cancelled) {
@@ -97,7 +77,7 @@ export default function AccountTab() {
     return () => {
       cancelled = true;
     };
-  }, [can]);
+  }, []);
 
   const displayName = profile?.name || fullName || 'Dealer';
   const primaryShowroom = getPrimaryShowroom(profile);
@@ -114,85 +94,97 @@ export default function AccountTab() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}>
         <View style={styles.avatarBlock}>
-          <View style={[styles.avatar, { backgroundColor: colors['surface-container-high'] }]}>
-            <Text style={[styles.avatarText, { color: colors.primary }]}>
-              {getInitials(displayName)}
-            </Text>
+          <View style={[styles.avatarShadow, { backgroundColor: colors.primary + '15' }]}>
+            <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+              <Text style={[styles.avatarText, { color: colors['on-primary'] }]}>
+                {getInitials(displayName)}
+              </Text>
+            </View>
           </View>
           <Text style={[styles.name, { color: colors['on-surface'] }]}>{displayName}</Text>
-          <Text style={[styles.roleLine, { color: colors['on-surface'] }]}>{roleLine}</Text>
+          <Text style={[styles.roleLine, { color: colors['on-surface-variant'] }]}>{roleLine}</Text>
           <Pressable
-            style={[styles.editPill, { backgroundColor: colors['surface-container-high'] }]}>
-            <Text style={[styles.editPillText, { color: colors.primary }]}>Edit Profile</Text>
+            style={({ pressed }) => [
+              styles.editPill,
+              {
+                backgroundColor: colors.primary,
+                transform: [{ scale: pressed ? 0.96 : 1 }]
+              },
+            ]}>
+            <Ionicons name="pencil" size={16} color={colors['on-primary']} />
+            <Text style={[styles.editPillText, { color: colors['on-primary'] }]}>Edit Profile</Text>
           </Pressable>
         </View>
 
         <View style={styles.rows}>
-          {can(PERMISSIONS.EMPLOYEE_READ) ? (
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors['on-surface-variant'] }]}>
+              Management
+            </Text>
+            {can(PERMISSIONS.EMPLOYEE_READ) ? (
+              <SettingsRow
+                icon="person-add-outline"
+                title="My Employees"
+                subtitle="Manage sales, staff access"
+                trailing="chevron"
+                onPress={() => router.push('/employees')}
+              />
+            ) : null}
+            {can(PERMISSIONS.SHOWROOM_UPDATE) ? (
+              <SettingsRow
+                icon="storefront-outline"
+                title="My Showrooms"
+                subtitle="View and manage locations"
+                trailing="chevron"
+                onPress={() => router.push('/showroom')}
+              />
+            ) : null}
+          </View>
+
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: colors['on-surface-variant'] }]}>
+              Account & Preferences
+            </Text>
+            {can(PERMISSIONS.REPORTS_READ) ? (
+              <SettingsRow
+                icon="ribbon-outline"
+                title="Subscription"
+                subtitle={'Basic plan\nRenews 15 Aug'}
+                trailing="chevron"
+              />
+            ) : null}
+            {can(PERMISSIONS.NOTIFICATION_READ) ? (
+              <SettingsRow
+                icon="notifications-outline"
+                title="Notification"
+                subtitle="Manage alerts & reminders"
+                trailing="chevron"
+                onPress={() => router.push('/notifications')}
+              />
+            ) : null}
             <SettingsRow
-              icon="person-add-outline"
-              title="My Employees"
-              subtitle="Manage sales, staff access"
-              trailing={
-                employeeCount !== null ? (
-                  <View
-                    style={[styles.countBadge, { backgroundColor: colors['surface-container-high'] }]}>
-                    <Text style={[styles.countBadgeText, { color: colors.primary }]}>
-                      {employeeCount}
-                    </Text>
-                  </View>
-                ) : undefined
-              }
-              onPress={() => router.push('/employees')}
-            />
-          ) : null}
-          {can(PERMISSIONS.SHOWROOM_UPDATE) ? (
-            <SettingsRow
-              icon="storefront-outline"
-              title="My Showroom"
-              subtitle={primaryShowroom?.showroom_name ?? 'No showroom yet'}
+              icon={themePreference === 'dark' ? 'moon' : 'moon-outline'}
+              title="Dark mode"
+              subtitle={themePreferenceLabel(themePreference)}
               trailing="chevron"
-              onPress={() => router.push('/showroom/edit')}
+              onPress={cycleThemePreference}
             />
-          ) : null}
-          {can(PERMISSIONS.REPORTS_READ) ? (
-            <SettingsRow
-              icon="ribbon-outline"
-              title="Subscription"
-              subtitle={'Basic plan\nRenews 15 Aug'}
-              trailing="chevron"
-            />
-          ) : null}
-          {can(PERMISSIONS.NOTIFICATION_READ) ? (
-            <SettingsRow
-              icon="notifications-outline"
-              title="Notification"
-              subtitle="Manage alerts & reminders"
-              trailing="chevron"
-              onPress={() => router.push('/notifications')}
-            />
-          ) : null}
-          <SettingsRow
-            icon={themePreference === 'dark' ? 'moon' : 'moon-outline'}
-            title="Dark mode"
-            subtitle={themePreferenceLabel(themePreference)}
-            trailing="chevron"
-            onPress={cycleThemePreference}
-          />
+          </View>
 
           <Pressable
             onPress={logout}
             disabled={isLoggingOut}
             style={({ pressed }) => [
-              styles.row,
               styles.logoutRow,
-              { borderColor: colors.error, opacity: pressed ? 0.85 : 1 },
+              {
+                backgroundColor: colors['error-container'],
+                opacity: pressed ? 0.85 : 1,
+                transform: [{ scale: pressed ? 0.98 : 1 }]
+              },
             ]}>
-            <View style={[styles.rowIcon, { backgroundColor: colors['error-container'] }]}>
-              <Ionicons name="log-out-outline" size={22} color={colors.error} />
-            </View>
+            <Ionicons name="log-out-outline" size={22} color={colors.error} />
             <Text style={[styles.logoutText, { color: colors.error }]}>
-              {isLoggingOut ? 'Logging out' : 'Log Out'}
+              {isLoggingOut ? 'Logging out...' : 'Log Out'}
             </Text>
           </Pressable>
         </View>
@@ -221,19 +213,22 @@ function SettingsRow({
       onPress={onPress}
       style={({ pressed }) => [
         styles.row,
-        { borderColor: colors.primary, opacity: pressed ? 0.85 : 1 },
+        {
+          opacity: pressed ? 0.6 : 1,
+          borderBottomColor: colors.outline,
+        },
       ]}>
       <View style={[styles.rowIcon, { backgroundColor: colors['surface-container-high'] }]}>
-        <Ionicons name={icon} size={22} color={colors.primary} />
+        <Ionicons name={icon} size={20} color={colors.primary} />
       </View>
       <View style={styles.rowText}>
         <Text style={[styles.rowTitle, { color: colors['on-surface'] }]}>{title}</Text>
-        <Text style={[styles.rowSubtitle, { color: colors['on-surface'] }]}>{subtitle}</Text>
+        <Text style={[styles.rowSubtitle, { color: colors['on-surface-variant'] }]}>{subtitle}</Text>
       </View>
       {trailing === 'chevron' ? (
-        <Ionicons name="chevron-forward" size={20} color={colors['on-surface']} />
+        <Ionicons name="chevron-forward" size={18} color={colors['on-surface-variant']} />
       ) : trailing === 'edit' ? (
-        <Ionicons name="pencil-outline" size={20} color={colors.primary} />
+        <Ionicons name="pencil-outline" size={18} color={colors.primary} />
       ) : (
         trailing
       )}
@@ -273,12 +268,20 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: Grid.columns.margin,
-    paddingTop: 24,
+    paddingTop: 20,
     paddingBottom: 118,
   },
   avatarBlock: {
     alignItems: 'center',
-    gap: 6,
+    gap: 12,
+    paddingVertical: 10,
+  },
+  avatarShadow: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   avatar: {
     width: 100,
@@ -289,74 +292,87 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     fontFamily: FontFamily.medium,
-    fontSize: 40,
+    fontSize: 42,
   },
   name: {
     fontFamily: FontFamily.medium,
-    fontSize: 28,
-    marginTop: 10,
+    fontSize: 26,
+    marginTop: 12,
   },
   roleLine: {
     fontFamily: FontFamily.regular,
-    fontSize: 16,
+    fontSize: 14,
+    lineHeight: 20,
   },
   editPill: {
-    borderRadius: 20,
-    paddingHorizontal: 20,
-    paddingVertical: 6,
-    marginTop: 6,
+    borderRadius: 24,
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   editPillText: {
-    fontFamily: Typography.screenTitle.fontFamily,
-    fontSize: 13,
+    fontFamily: FontFamily.medium,
+    fontSize: 14,
   },
   rows: {
     gap: 20,
-    marginTop: 26,
+    marginTop: 28,
+  },
+  section: {
+    gap: 0,
+  },
+  sectionTitle: {
+    fontFamily: FontFamily.medium,
+    fontSize: 11,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+    paddingHorizontal: 0,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
   row: {
-    minHeight: 110,
-    borderRadius: 20,
-    borderWidth: 0.5,
+    minHeight: 56,
+    borderBottomWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    gap: 20,
+    paddingHorizontal: 0,
+    paddingVertical: 14,
+    gap: 12,
   },
   rowIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 15,
+    width: 40,
+    height: 40,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   rowText: {
     flex: 1,
-    gap: 6,
+    gap: 2,
   },
   rowTitle: {
-    fontFamily: Typography.screenTitle.fontFamily,
-    fontSize: 16,
+    fontFamily: FontFamily.medium,
+    fontSize: 15,
   },
   rowSubtitle: {
     fontFamily: FontFamily.regular,
-    fontSize: 13,
-    lineHeight: 17,
-  },
-  countBadge: {
-    borderRadius: 15,
-    paddingHorizontal: 12,
-    paddingVertical: 3,
-  },
-  countBadgeText: {
-    fontFamily: Typography.screenTitle.fontFamily,
-    fontSize: 13,
+    fontSize: 12,
+    lineHeight: 16,
   },
   logoutRow: {
-    minHeight: 90,
+    minHeight: 56,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    gap: 12,
+    marginTop: 8,
   },
   logoutText: {
-    fontFamily: Typography.screenTitle.fontFamily,
+    fontFamily: FontFamily.medium,
     fontSize: 16,
   },
 });
